@@ -10,3 +10,29 @@
     background-color: #FCFAFA !important;
   }
 }
+
+
+
+/* Minimalist macOS-style scrollbar */
+.mac-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.mac-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+.mac-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mac-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.35);
+  border-radius: 999px;
+}
+.mac-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.6);
+}
+.mac-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.35) transparent;
+}
+
