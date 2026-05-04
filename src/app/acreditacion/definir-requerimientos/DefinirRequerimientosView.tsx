@@ -20,7 +20,6 @@ interface EntregableRow {
   tipo_entregable: string;
   nota: string;
   orden: number;
-  isNew: boolean;
   isSaving: boolean;
 }
 
@@ -47,6 +46,21 @@ const TIPO_OPTIONS = [
   { value: "ambos", label: "Ambos" },
 ];
 
+/** Macroprocesos ocultos (por código) */
+const HIDDEN_MACROS = new Set(["AEX", "DIV"]);
+
+/** Criterios ocultos (por codigo_criterio) */
+const HIDDEN_CRITERIOS = new Set([
+  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8",
+  "GRH4-1",
+  "MRA8-1", "MRA8-2", "MRA8-3",
+  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6",
+  "RCR4-1", "RCR4-2", "RCR4-3",
+  "GMD3-4", "GMD3-5",
+  "MRS1-1", "MRS1-2", "MRS1-3",
+  "MRS2-1", "MRS2-2",
+]);
+
 /* ─── Helpers ────────────────────────────────────────────── */
 function buildEntregables(c: any): EntregableRow[] {
   const rows: EntregableRow[] = (c.entregable ?? []).map((e: any) => ({
@@ -56,18 +70,19 @@ function buildEntregables(c: any): EntregableRow[] {
     tipo_entregable: e.tipo_entregable ?? "",
     nota: e.nota ?? "",
     orden: e.orden ?? 1,
-    isNew: false,
     isSaving: false,
   }));
   if (rows.length === 0) {
-    rows.push({ criterio_id: c.id, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isNew: true, isSaving: false });
+    rows.push({ criterio_id: c.id, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
   }
   return rows;
 }
 
-function buildResponsable(c: any): ResponsableState {
+function buildResponsable(c: any, responsables: Responsable[]): ResponsableState {
   const cr = c.criterio_responsable?.[0];
-  return { criterioResponsableId: cr?.id, responsable_id: cr?.responsable_id ?? "", area_id: "" };
+  const responsable_id = cr?.responsable_id ?? "";
+  const area_id = responsables.find((r) => r.id === responsable_id)?.area_id ?? "";
+  return { criterioResponsableId: cr?.id, responsable_id, area_id };
 }
 
 function extractCriterio(c: any): CriterioData {
@@ -97,7 +112,7 @@ export default function DefinirRequerimientosView({
 
   const [responsableMap, setResponsableMap] = useState<Record<string, ResponsableState>>(() => {
     const m: Record<string, ResponsableState> = {};
-    criteriosIniciales.forEach((c) => { m[c.id] = buildResponsable(c); });
+    criteriosIniciales.forEach((c) => { m[c.id] = buildResponsable(c, responsables); });
     return m;
   });
 
@@ -126,7 +141,7 @@ export default function DefinirRequerimientosView({
         setCriterios(result.map(extractCriterio));
         const newE: Record<string, EntregableRow[]> = {};
         const newR: Record<string, ResponsableState> = {};
-        result.forEach((c: any) => { newE[c.id] = buildEntregables(c); newR[c.id] = buildResponsable(c); });
+        result.forEach((c: any) => { newE[c.id] = buildEntregables(c); newR[c.id] = buildResponsable(c, responsables); });
         setEntregablesMap(newE);
         setResponsableMap(newR);
       } else {
@@ -139,7 +154,7 @@ export default function DefinirRequerimientosView({
   const addEntregableRow = (criterioId: string) => {
     setEntregablesMap((prev) => {
       const rows = prev[criterioId] ?? [];
-      return { ...prev, [criterioId]: [...rows, { criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: rows.length + 1, isNew: true, isSaving: false }] };
+      return { ...prev, [criterioId]: [...rows, { criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: rows.length + 1, isSaving: false }] };
     });
   };
 
@@ -163,41 +178,60 @@ export default function DefinirRequerimientosView({
     }
     updateEntregableRow(criterioId, idx, { isSaving: true });
 
-    const { data: saved, error } = await supabase
-      .from("entregable")
-      .insert({ criterio_id: criterioId, descripcion: row.descripcion, tipo_entregable: row.tipo_entregable, nota: row.nota || null, orden: row.orden })
-      .select("id").single();
+    let savedId = row.id;
 
-    if (error || !saved) {
-      alert("Error al guardar el entregable.");
-      updateEntregableRow(criterioId, idx, { isSaving: false }); return;
-    }
-
-    if (resp?.responsable_id && !resp.criterioResponsableId) {
-      const { data: cr } = await supabase
-        .from("criterio_responsable")
-        .insert({ criterio_id: criterioId, responsable_id: resp.responsable_id })
+    if (row.id) {
+      // UPDATE existing entregable
+      const { error } = await supabase
+        .from("entregable")
+        .update({ descripcion: row.descripcion, tipo_entregable: row.tipo_entregable, nota: row.nota || null })
+        .eq("id", row.id);
+      if (error) {
+        alert("Error al actualizar el entregable.");
+        updateEntregableRow(criterioId, idx, { isSaving: false }); return;
+      }
+    } else {
+      // INSERT new entregable
+      const { data: saved, error } = await supabase
+        .from("entregable")
+        .insert({ criterio_id: criterioId, descripcion: row.descripcion, tipo_entregable: row.tipo_entregable, nota: row.nota || null, orden: row.orden })
         .select("id").single();
-      if (cr) updateResponsable(criterioId, { criterioResponsableId: cr.id });
+      if (error || !saved) {
+        alert("Error al guardar el entregable.");
+        updateEntregableRow(criterioId, idx, { isSaving: false }); return;
+      }
+      savedId = saved.id;
     }
 
-    updateEntregableRow(criterioId, idx, { id: saved.id, isNew: false, isSaving: false });
+    // Upsert criterio_responsable
+    if (resp?.responsable_id) {
+      if (resp.criterioResponsableId) {
+        // UPDATE existing responsable
+        await supabase
+          .from("criterio_responsable")
+          .update({ responsable_id: resp.responsable_id })
+          .eq("id", resp.criterioResponsableId);
+      } else {
+        // INSERT new responsable
+        const { data: cr } = await supabase
+          .from("criterio_responsable")
+          .insert({ criterio_id: criterioId, responsable_id: resp.responsable_id })
+          .select("id").single();
+        if (cr) updateResponsable(criterioId, { criterioResponsableId: cr.id });
+      }
+    }
+
+    updateEntregableRow(criterioId, idx, { id: savedId, isSaving: false });
   };
 
-  const deleteEntregable = async (criterioId: string, idx: number) => {
-    const row = entregablesMap[criterioId]?.[idx];
-    if (row?.id) await supabase.from("entregable").delete().eq("id", row.id);
-    setEntregablesMap((prev) => {
-      const rows = [...(prev[criterioId] ?? [])];
-      rows.splice(idx, 1);
-      const final = rows.length ? rows : [{ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isNew: true, isSaving: false }];
-      return { ...prev, [criterioId]: final };
-    });
-  };
-
-  const criteriosFiltrados = selectedCodigoId
+  const criteriosFiltrados = (selectedCodigoId
     ? criterios.filter((c) => c.codigo_id === selectedCodigoId)
-    : criterios;
+    : criterios
+  )
+    .filter((c) => !HIDDEN_CRITERIOS.has(c.codigo_criterio))
+    .sort((a, b) =>
+      a.codigo_criterio.localeCompare(b.codigo_criterio, undefined, { numeric: true, sensitivity: "base" })
+    );
 
   /* ─── Render ─── */
   return (
@@ -248,7 +282,7 @@ export default function DefinirRequerimientosView({
               defer
               className="flex-1 py-3 px-4"
             >
-              {macroprocesos.map((macro) => {
+              {macroprocesos.filter((macro) => !HIDDEN_MACROS.has(macro.codigo)).map((macro) => {
                 const isActive = macro.id === selectedMacroId;
                 return (
                   <button
@@ -322,7 +356,6 @@ export default function DefinirRequerimientosView({
                       const entregables = entregablesMap[criterio.id] ?? [];
                       const resp = responsableMap[criterio.id] ?? { area_id: "", responsable_id: "" };
                       const cargosDelArea = responsables.filter((r) => r.area_id === resp.area_id);
-                      const isLocked = !!resp.criterioResponsableId;
 
                       return (
                         <div
@@ -347,9 +380,8 @@ export default function DefinirRequerimientosView({
                           <div className="w-[20%] shrink-0 border-r border-gray-100 px-2 py-4 flex items-start">
                             <select
                               value={resp.area_id}
-                              disabled={isLocked}
                               onChange={(e) => updateResponsable(criterio.id, { area_id: e.target.value, responsable_id: "" })}
-                              className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 cursor-pointer"
                             >
                               <option value="">— Área —</option>
                               {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
@@ -360,9 +392,9 @@ export default function DefinirRequerimientosView({
                           <div className="w-[25%] shrink-0 border-r border-gray-100 px-2 py-4 flex items-start">
                             <select
                               value={resp.responsable_id}
-                              disabled={isLocked || !resp.area_id}
+                              disabled={!resp.area_id}
                               onChange={(e) => updateResponsable(criterio.id, { responsable_id: e.target.value })}
-                              className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 cursor-pointer"
                             >
                               <option value="">— Cargo —</option>
                               {cargosDelArea.map((r) => <option key={r.id} value={r.id}>{r.cargo}</option>)}
@@ -380,20 +412,18 @@ export default function DefinirRequerimientosView({
                                 <div className="w-[80%] shrink-0 px-2 py-3 border-r border-gray-100 flex items-center">
                                   <textarea
                                     value={row.descripcion}
-                                    disabled={!row.isNew}
                                     onChange={(e) => updateEntregableRow(criterio.id, idx, { descripcion: e.target.value })}
                                     placeholder="Descripción del entregable..."
                                     rows={2}
-                                    className="w-full text-sm text-gray-700 bg-transparent resize-none focus:outline-none placeholder-gray-300 disabled:text-gray-600 leading-relaxed"
+                                    className="w-full text-sm text-gray-700 bg-transparent resize-none focus:outline-none placeholder-gray-300 leading-relaxed"
                                   />
                                 </div>
                                 {/* Tipo */}
                                 <div className="w-[10%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center">
                                   <select
                                     value={row.tipo_entregable}
-                                    disabled={!row.isNew}
                                     onChange={(e) => updateEntregableRow(criterio.id, idx, { tipo_entregable: e.target.value })}
-                                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-md px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-center"
+                                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-md px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 cursor-pointer text-center"
                                   >
                                     <option value="">—</option>
                                     {TIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label.slice(0,3)}.</option>)}
@@ -401,33 +431,21 @@ export default function DefinirRequerimientosView({
                                 </div>
                                 {/* Actions */}
                                 <div className="w-[10%] shrink-0 px-2 py-3 flex items-center justify-center">
-                                  {row.isNew ? (
-                                    <button
-                                      onClick={() => saveEntregable(criterio.id, idx)}
-                                      disabled={row.isSaving}
-                                      className="flex items-center justify-center w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                                      title="Guardar"
-                                    >
-                                      {row.isSaving ? (
-                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                        </svg>
-                                      ) : (
-                                        <span className="text-base">💾</span>
-                                      )}
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => deleteEntregable(criterio.id, idx)}
-                                      className="text-red-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50"
-                                      title="Eliminar entregable"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  <button
+                                    onClick={() => saveEntregable(criterio.id, idx)}
+                                    disabled={row.isSaving}
+                                    className="flex items-center justify-center w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                                    title={row.id ? "Actualizar" : "Guardar"}
+                                  >
+                                    {row.isSaving ? (
+                                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                                       </svg>
-                                    </button>
-                                  )}
+                                    ) : (
+                                      <span className="text-base">💾</span>
+                                    )}
+                                  </button>
                                 </div>
                               </div>
                             ))}
