@@ -30,7 +30,8 @@ export default function Sidebar() {
   const toggleSgd = () => setIsSgdOpen(!isSgdOpen);
   const toggleQps = () => setIsQpsOpen(!isQpsOpen);
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) =>
+    path === "/" ? pathname === "/" : pathname.startsWith(path);
 
   const filteredSgd = SGD_ITEMS.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredQps = QPS_ITEMS.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -63,9 +64,7 @@ export default function Sidebar() {
       <div className={`mb-6 w-full shrink-0 flex items-center ${isCollapsed ? "justify-center" : ""}`}>
         <Link href="/" className="block w-full text-center">
           {isCollapsed ? (
-            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-bold text-xl mx-auto">
-              A
-            </div>
+            <div className="w-10 h-10 mx-auto"></div>
           ) : (
             <Image
               src="/logo.webp"

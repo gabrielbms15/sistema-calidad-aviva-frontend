@@ -41,7 +41,7 @@ interface Props {
 const TIPO_LABELS: Record<string, string> = {
   documento:   "Doc.",
   proceso:     "Proc.",
-  observacion: "Obs.",
+  in_situ:     "Obs.",
   ambos:       "Ambos",
 };
 
@@ -307,7 +307,7 @@ export default function EvidenciasView({
                     disabled={isPending}
                     className={`w-full text-left flex flex-col px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${
                       isActive
-                        ? "border border-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
+                        ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
                         : "text-white/50 hover:text-white/80 hover:bg-white/5"
                     }`}
                   >

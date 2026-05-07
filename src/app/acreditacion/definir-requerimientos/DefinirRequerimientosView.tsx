@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
@@ -11,7 +11,7 @@ interface Macroproceso { id: string; codigo: string; nombre: string; orden: numb
 interface Codigo { id: string; codigo: string; descripcion: string; orden: number; }
 interface Area { id: string; nombre: string; }
 interface Responsable { id: string; area_id: string; cargo: string; }
-interface CriterioData { id: string; codigo_criterio: string; descripcion: string; codigo_id: string; }
+interface CriterioData { id: string; codigo_criterio: string; descripcion: string; codigo_id: string; fuente_0?: string; fuente_1?: string; fuente_2?: string; }
 
 interface EntregableRow {
   id?: string;
@@ -42,8 +42,7 @@ interface Props {
 const TIPO_OPTIONS = [
   { value: "documento", label: "Documento" },
   { value: "proceso", label: "Proceso" },
-  { value: "observacion", label: "Observación" },
-  { value: "ambos", label: "Ambos" },
+  { value: "in_situ", label: "Observación" },
 ];
 
 /** Macroprocesos ocultos (por código) */
@@ -86,7 +85,7 @@ function buildResponsable(c: any, responsables: Responsable[]): ResponsableState
 }
 
 function extractCriterio(c: any): CriterioData {
-  return { id: c.id, codigo_criterio: c.codigo_criterio, descripcion: c.descripcion, codigo_id: c.codigo_id };
+  return { id: c.id, codigo_criterio: c.codigo_criterio, descripcion: c.descripcion, codigo_id: c.codigo_id, fuente_0: c.fuente_0, fuente_1: c.fuente_1, fuente_2: c.fuente_2 };
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -103,6 +102,20 @@ export default function DefinirRequerimientosView({
   const [criterios, setCriterios] = useState<CriterioData[]>(criteriosIniciales.map(extractCriterio));
   const [selectedCodigoId, setSelectedCodigoId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isSavingAll, setIsSavingAll] = useState(false);
+  const [openPopoverCriterioId, setOpenPopoverCriterioId] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Cierra el popover al hacer clic fuera
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpenPopoverCriterioId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const [entregablesMap, setEntregablesMap] = useState<Record<string, EntregableRow[]>>(() => {
     const m: Record<string, EntregableRow[]> = {};
@@ -135,7 +148,7 @@ export default function DefinirRequerimientosView({
       if (ids.length > 0) {
         const { data: raw } = await supabase
           .from("criterio")
-          .select("id,codigo_criterio,descripcion,codigo_id,entregable(id,criterio_id,descripcion,tipo_entregable,nota,orden),criterio_responsable(id,criterio_id,responsable_id)")
+          .select("id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,entregable(id,criterio_id,descripcion,tipo_entregable,nota,orden),criterio_responsable(id,criterio_id,responsable_id)")
           .in("codigo_id", ids);
         const result = raw ?? [];
         setCriterios(result.map(extractCriterio));
@@ -170,11 +183,12 @@ export default function DefinirRequerimientosView({
     setResponsableMap((prev) => ({ ...prev, [criterioId]: { ...prev[criterioId], ...patch } }));
   };
 
-  const saveEntregable = async (criterioId: string, idx: number) => {
+  const saveEntregable = async (criterioId: string, idx: number, silent = false) => {
     const row = entregablesMap[criterioId]?.[idx];
     const resp = responsableMap[criterioId];
     if (!row?.descripcion.trim() || !row.tipo_entregable) {
-      alert("Completa la descripción y el tipo de entregable."); return;
+      if (!silent) alert("Completa la descripción y el tipo de entregable.");
+      return;
     }
     updateEntregableRow(criterioId, idx, { isSaving: true });
 
@@ -222,6 +236,65 @@ export default function DefinirRequerimientosView({
     }
 
     updateEntregableRow(criterioId, idx, { id: savedId, isSaving: false });
+  };
+
+  const saveAll = async () => {
+    setIsSavingAll(true);
+    try {
+      const promises: Promise<void>[] = [];
+      for (const criterio of criteriosFiltrados) {
+        const rows = entregablesMap[criterio.id] ?? [];
+        for (let idx = 0; idx < rows.length; idx++) {
+          const row = rows[idx];
+          if (row.descripcion.trim() && row.tipo_entregable) {
+            promises.push(saveEntregable(criterio.id, idx, true));
+          }
+        }
+      }
+      await Promise.all(promises);
+      alert("Se han guardado todos los cambios correctamente.");
+    } catch (error) {
+      console.error(error);
+      alert("Ocurrió un error al guardar todo.");
+    } finally {
+      setIsSavingAll(false);
+    }
+  };
+
+  const deleteEntregable = async (criterioId: string, idx: number) => {
+    const row = entregablesMap[criterioId]?.[idx];
+    if (!row) return;
+
+    if (!row.id) {
+      setEntregablesMap((prev) => {
+        const rows = [...(prev[criterioId] ?? [])];
+        rows.splice(idx, 1);
+        if (rows.length === 0) {
+          rows.push({ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
+        }
+        return { ...prev, [criterioId]: rows };
+      });
+      return;
+    }
+
+    if (!confirm("¿Estás seguro de eliminar este entregable?")) return;
+
+    updateEntregableRow(criterioId, idx, { isSaving: true });
+    const { error } = await supabase.from("entregable").delete().eq("id", row.id);
+    if (error) {
+      alert("Error al eliminar el entregable.");
+      updateEntregableRow(criterioId, idx, { isSaving: false });
+      return;
+    }
+
+    setEntregablesMap((prev) => {
+      const rows = [...(prev[criterioId] ?? [])];
+      rows.splice(idx, 1);
+      if (rows.length === 0) {
+        rows.push({ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
+      }
+      return { ...prev, [criterioId]: rows };
+    });
   };
 
   const criteriosFiltrados = (selectedCodigoId
@@ -291,7 +364,7 @@ export default function DefinirRequerimientosView({
                     disabled={isPending}
                     className={`w-full text-left flex flex-col px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${
                       isActive
-                        ? "border border-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
+                        ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
                         : "text-white/50 hover:text-white/80 hover:bg-white/5"
                     }`}
                   >
@@ -338,9 +411,9 @@ export default function DefinirRequerimientosView({
 
                   {/* Table header */}
                   <div className="flex border-b border-gray-200 bg-gray-200/80 text-[11px] font-bold uppercase tracking-wider text-gray-500 shrink-0">
-                    <div className="w-[5%] shrink-0 px-2 py-3">Criterio</div>
+                    <div className="w-[8%] shrink-0 px-2 py-3">Criterio</div>
                     <div className="w-[20%] shrink-0 px-3 py-3 border-l border-gray-200">Área</div>
-                    <div className="w-[25%] shrink-0 px-3 py-3 border-l border-gray-200">Cargo</div>
+                    <div className="w-[22%] shrink-0 px-3 py-3 border-l border-gray-200">Cargo</div>
                     <div className="w-[40%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
                     <div className="w-[5%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Tipo</div>
                     <div className="w-[5%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Acción</div>
@@ -362,18 +435,70 @@ export default function DefinirRequerimientosView({
                           key={criterio.id}
                           className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-50/40" : "bg-white"}`}
                         >
-                          {/* Col 1 — Criterio (spans all entregable rows naturally) */}
-                          <div className="w-[5%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center">
+                          {/* Col 1 — Criterio */}
+                          <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center">
                             <span className="font-mono text-xs font-bold text-gray-900 text-center break-all">{criterio.codigo_criterio}</span>
-                            <button
-                              onClick={() => addEntregableRow(criterio.id)}
-                              className="flex items-center justify-center p-1 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-md transition-colors mt-3"
-                              title="Añadir entregable"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
+                            <div className="flex flex-row items-center justify-center gap-2 mt-3 w-full relative" ref={openPopoverCriterioId === criterio.id ? popoverRef : undefined}>
+                              {/* Botón + añadir entregable */}
+                              <button
+                                onClick={() => addEntregableRow(criterio.id)}
+                                className="flex items-center justify-center p-1 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-md transition-colors"
+                                title="Añadir entregable"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                              </button>
+
+                              {/* Botón (i) fuentes */}
+                              <div className="relative">
+                                <button
+                                  onClick={() => setOpenPopoverCriterioId(
+                                    openPopoverCriterioId === criterio.id ? null : criterio.id
+                                  )}
+                                  className="flex items-center justify-center p-1 bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-500 rounded-md transition-colors"
+                                  title="Ver fuentes de verificación"
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+
+                                {/* Popover */}
+                                {openPopoverCriterioId === criterio.id && (
+                                  <div
+                                    ref={popoverRef}
+                                    className="absolute left-full top-0 ml-2 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4"
+                                  >
+                                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Fuentes de verificación</p>
+                                    {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 ? (
+                                      <p className="text-xs text-gray-300 italic">Sin fuentes registradas.</p>
+                                    ) : (
+                                      <ul className="space-y-2">
+                                        {criterio.fuente_0 && (
+                                          <li className="flex items-start gap-2">
+                                            <span className="mt-1.5 w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                                            <span className="text-xs text-gray-700 leading-snug">{criterio.fuente_0}</span>
+                                          </li>
+                                        )}
+                                        {criterio.fuente_1 && (
+                                          <li className="flex items-start gap-2">
+                                            <span className="mt-1.5 w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
+                                            <span className="text-xs text-gray-700 leading-snug">{criterio.fuente_1}</span>
+                                          </li>
+                                        )}
+                                        {criterio.fuente_2 && (
+                                          <li className="flex items-start gap-2">
+                                            <span className="mt-1.5 w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                                            <span className="text-xs text-gray-700 leading-snug">{criterio.fuente_2}</span>
+                                          </li>
+                                        )}
+                                      </ul>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
                           {/* Col 2 — Área (spans all entregable rows) */}
@@ -389,7 +514,7 @@ export default function DefinirRequerimientosView({
                           </div>
 
                           {/* Col 3 — Cargo (spans all entregable rows) */}
-                          <div className="w-[25%] shrink-0 border-r border-gray-100 px-2 py-4 flex items-start">
+                          <div className="w-[22%] shrink-0 border-r border-gray-100 px-2 py-4 flex items-start">
                             <select
                               value={resp.responsable_id}
                               disabled={!resp.area_id}
@@ -430,21 +555,33 @@ export default function DefinirRequerimientosView({
                                   </select>
                                 </div>
                                 {/* Actions */}
-                                <div className="w-[10%] shrink-0 px-2 py-3 flex items-center justify-center">
+                                <div className="w-[10%] shrink-0 px-2 py-2 flex flex-col items-center justify-center gap-1">
                                   <button
                                     onClick={() => saveEntregable(criterio.id, idx)}
                                     disabled={row.isSaving}
-                                    className="flex items-center justify-center w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                                    className="flex items-center justify-center w-7 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-md transition-colors disabled:opacity-50"
                                     title={row.id ? "Actualizar" : "Guardar"}
                                   >
                                     {row.isSaving ? (
-                                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                                       </svg>
                                     ) : (
-                                      <span className="text-base">💾</span>
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
                                     )}
+                                  </button>
+                                  <button
+                                    onClick={() => deleteEntregable(criterio.id, idx)}
+                                    disabled={row.isSaving}
+                                    className="flex items-center justify-center w-7 h-7 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 rounded-md transition-colors disabled:opacity-50"
+                                    title="Eliminar"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
                                   </button>
                                 </div>
                               </div>
@@ -465,11 +602,31 @@ export default function DefinirRequerimientosView({
                     Mostrando <span className="font-medium text-gray-600">{criteriosFiltrados.length}</span>{" "}
                     de <span className="font-medium text-gray-600">{criterios.length}</span> criterios
                   </p>
-                  {selectedCodigoId && (
-                    <button onClick={() => setSelectedCodigoId(null)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-                      Limpiar filtro ×
+                  
+                  <div className="flex items-center gap-4">
+                    {selectedCodigoId && (
+                      <button onClick={() => setSelectedCodigoId(null)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
+                        Limpiar filtro ×
+                      </button>
+                    )}
+                    <button
+                      onClick={saveAll}
+                      disabled={isSavingAll}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl shadow-sm transition-all disabled:opacity-50"
+                    >
+                      {isSavingAll ? (
+                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {isSavingAll ? "Guardando..." : "Guardar todo"}
                     </button>
-                  )}
+                  </div>
                 </div>
               )}
             </OverlayScrollbarsComponent>
