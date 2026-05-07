@@ -468,7 +468,11 @@ export default function DefinirRequerimientosView({
                                 {openPopoverCriterioId === criterio.id && (
                                   <div
                                     ref={popoverRef}
-                                    className="absolute left-full top-0 ml-2 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4"
+                                    className={`absolute left-full ml-2 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4 ${
+                                      ci >= criteriosFiltrados.length - 2 && criteriosFiltrados.length > 3 
+                                        ? "bottom-0" // Pop upward if near bottom
+                                        : "top-0"    // Pop downward normally
+                                    }`}
                                   >
                                     <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Fuentes de verificación</p>
                                     {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 ? (

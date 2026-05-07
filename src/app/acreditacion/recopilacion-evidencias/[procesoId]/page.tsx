@@ -44,7 +44,7 @@ export default async function EvidenciasPage({ params }: PageProps) {
   const codigoIds = (codigosIniciales ?? []).map((c) => c.id);
 
   // ── 4. Cargar criterios + entregables + seguimiento del proceso ──
-  const { data: criteriosIniciales } = codigoIds.length > 0
+  const { data: criteriosIniciales, error } = codigoIds.length > 0
     ? await supabase
         .from("criterio")
         .select(`
@@ -61,14 +61,25 @@ export default async function EvidenciasPage({ params }: PageProps) {
             entregable_seguimiento (
               id,
               estado,
-              nombre_evidencia,
-              link_evidencia,
-              proceso_id
+              observacion,
+              proceso_id,
+              entregable_evidencia (
+                id,
+                nombre_evidencia,
+                link_evidencia,
+                orden
+              )
             )
           )
         `)
         .in("codigo_id", codigoIds)
-    : { data: [] };
+    : { data: [], error: null } as any;
+
+  if (error) {
+    console.error("SUPABASE ERROR MESSAGE:", error.message);
+    console.error("SUPABASE ERROR DETAILS:", error.details);
+    console.error("SUPABASE ERROR HINT:", error.hint);
+  }
 
   return (
     <EvidenciasView
