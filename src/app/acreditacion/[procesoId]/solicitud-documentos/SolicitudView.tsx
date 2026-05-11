@@ -59,23 +59,28 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 const ESTADO_COLORS: Record<string, string> = {
-  "No Iniciado":     "bg-gray-100 text-gray-600 border-gray-200",
-  "En Proceso":      "bg-amber-100 text-amber-700 border-amber-200",
-  "Atrasado":        "bg-red-100 text-red-700 border-red-200",
-  "Completado":      "bg-green-100 text-green-700 border-green-200",
-  "No Aplica":       "bg-slate-100 text-slate-500 border-slate-200",
+  "":             "bg-gray-50 text-gray-500 border-gray-300",
+  "cumplido":     "bg-green-100 text-green-700 border-green-200",
+  "parcial":      "bg-amber-100 text-amber-700 border-amber-200",
+  "no_cumplido":  "bg-red-100 text-red-700 border-red-200",
 };
+
+const EXCLUDED_CRITERIOS = new Set([
+  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3", 
+  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2", 
+  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2"
+]);
+
+const EXCLUDED_MACROS = new Set([8, 12]);
 
 /* ─── Helpers ────────────────────────────────────────────── */
 function buildEntregables(c: any, procesoId: string): EntregableRow[] {
   return (c.entregable ?? [])
     .sort((a: any, b: any) => (a.orden ?? 1) - (b.orden ?? 1))
     .map((e: any) => {
-      // Find the seguimiento for this specific process
       const segs = e.entregable_seguimiento ?? [];
       const seg = segs.find((s: any) => s.proceso_id === procesoId);
 
-      // Map evidencias
       let evidencias: EvidenciaRow[] = [];
       if (seg && seg.entregable_evidencia) {
         evidencias = [...seg.entregable_evidencia]
@@ -138,17 +143,14 @@ export default function SolicitudView({
     return responsables.filter((r) => r.area_nombre === selectedArea);
   }, [selectedArea, responsables]);
 
-  // Data state loaded when a responsable is selected
   const [macroprocesos, setMacroprocesos] = useState<Macroproceso[]>([]);
   const [allCodigos, setAllCodigos] = useState<Codigo[]>([]);
   const [allCriterios, setAllCriterios] = useState<CriterioData[]>([]);
   const [entregableMap, setEntregableMap] = useState<Record<string, EntregableRow[]>>({});
 
-  // View state
   const [selectedMacroId, setSelectedMacroId] = useState<string | null>(null);
   const [selectedCodigoId, setSelectedCodigoId] = useState<string | null>(null);
 
-  /* ─── Data Fetching ─── */
   const fetchDataForIds = (ids: string[]) => {
     if (ids.length === 0) {
       setMacroprocesos([]);
@@ -161,7 +163,6 @@ export default function SolicitudView({
     }
 
     startTransition(async () => {
-      // Usamos inner joins para traer la jerarquía completa de los criterios asignados a estos responsables
       const { data: raw, error } = await supabase
         .from("criterio")
         .select(`
@@ -195,11 +196,16 @@ export default function SolicitudView({
 
       const rawCriterios = raw ?? [];
       
-      // Extract unique macroprocesos
+      const filteredCriterios = rawCriterios.filter((c: any) => {
+        if (EXCLUDED_CRITERIOS.has(c.codigo_criterio)) return false;
+        if (EXCLUDED_MACROS.has(c.codigo.macroproceso.orden)) return false;
+        return true;
+      });
+
       const macroMap = new Map<string, Macroproceso>();
       const codigoMap = new Map<string, Codigo>();
       
-      rawCriterios.forEach((c: any) => {
+      filteredCriterios.forEach((c: any) => {
         const cod = c.codigo;
         const mac = cod.macroproceso;
         
@@ -213,21 +219,19 @@ export default function SolicitudView({
 
       const newMacros = Array.from(macroMap.values()).sort((a, b) => a.orden - b.orden);
       const newCodigos = Array.from(codigoMap.values()).sort((a, b) => a.orden - b.orden);
-      const newCriterios = rawCriterios.map(extractCriterio);
+      const newCriterios = filteredCriterios.map(extractCriterio);
 
+      const uniqueCriteriosMap = new Map<string, CriterioData>();
+      newCriterios.forEach(c => uniqueCriteriosMap.set(c.id, c));
+      
       const newEMap: Record<string, EntregableRow[]> = {};
-      rawCriterios.forEach((c: any) => {
+      filteredCriterios.forEach((c: any) => {
         newEMap[c.id] = buildEntregables(c, proceso.id);
       });
 
       setMacroprocesos(newMacros);
       setAllCodigos(newCodigos);
-      
-      // Deduplicate criterios in case multiple responsables share the same criterio
-      const uniqueCriteriosMap = new Map<string, CriterioData>();
-      newCriterios.forEach(c => uniqueCriteriosMap.set(c.id, c));
       setAllCriterios(Array.from(uniqueCriteriosMap.values()));
-      
       setEntregableMap(newEMap);
       
       setSelectedMacroId(newMacros.length > 0 ? newMacros[0].id : null);
@@ -249,7 +253,6 @@ export default function SolicitudView({
   const handleResponsableChange = (responsableId: string) => {
     setSelectedResponsableId(responsableId);
     if (!responsableId) {
-      // Si deselecciona, cargamos toda el área de nuevo
       const ids = responsables.filter(r => r.area_nombre === selectedArea).map(r => r.responsable_id);
       fetchDataForIds(ids);
     } else {
@@ -257,7 +260,6 @@ export default function SolicitudView({
     }
   };
 
-  /* ─── Filtering ─── */
   const codigosEnMacro = useMemo(() => {
     if (!selectedMacroId) return [];
     return allCodigos.filter(c => c.macroproceso_id === selectedMacroId);
@@ -279,7 +281,6 @@ export default function SolicitudView({
     );
   }, [allCriterios, allCodigos, selectedMacroId, selectedCodigoId]);
 
-  /* ─── Mutations ─── */
   const updateSeguimiento = (criterioId: string, idx: number, patch: Partial<Seguimiento>) => {
     setEntregableMap((prev) => {
       const rows = [...(prev[criterioId] ?? [])];
@@ -287,29 +288,48 @@ export default function SolicitudView({
       return { ...prev, [criterioId]: rows };
     });
   };
-
-  const saveObservacion = async (criterioId: string, idx: number) => {
-    const row = entregableMap[criterioId]?.[idx];
-    if (!row) return;
-    const seg = row.seguimiento;
-
-    updateSeguimiento(criterioId, idx, { isSavingObservacion: true });
-
-    if (seg.id) {
-      await supabase.from("entregable_seguimiento").update({ observacion: seg.observacion || null }).eq("id", seg.id);
-    } else {
-      const { data: saved } = await supabase
-        .from("entregable_seguimiento")
-        .insert({ entregable_id: row.id, proceso_id: proceso.id, estado: seg.estado || null, observacion: seg.observacion || null })
-        .select("id").single();
-      if (saved) updateSeguimiento(criterioId, idx, { id: saved.id });
+  const saveSeguimiento = async (entregableId: string, currentSeg: Seguimiento, patch?: Partial<Seguimiento>, criterioId?: string, idx?: number) => {
+    const seg = { ...currentSeg, ...patch };
+    const hasIds = criterioId !== undefined && idx !== undefined;
+    
+    if (hasIds) {
+      updateSeguimiento(criterioId!, idx!, { isSavingObservacion: true });
     }
-    updateSeguimiento(criterioId, idx, { isSavingObservacion: false });
+
+    try {
+      const payload = {
+        entregable_id: entregableId,
+        proceso_id: proceso.id,
+        estado: seg.estado || null,
+        observacion: seg.observacion || null,
+      };
+
+      let result;
+      // Ensure we have a real ID
+      if (seg.id && seg.id.length > 5) {
+        result = await supabase.from("entregable_seguimiento").update(payload).eq("id", seg.id).select("id").single();
+      } else {
+        result = await supabase.from("entregable_seguimiento")
+          .upsert(payload, { onConflict: "entregable_id, proceso_id" })
+          .select("id")
+          .single();
+      }
+
+      if (result.error) throw result.error;
+      if (result.data && hasIds) {
+        updateSeguimiento(criterioId!, idx!, { id: result.data.id });
+      }
+    } catch (err: any) {
+      console.error("Error saving seguimiento:", err.message || err.code || "Unknown error", err);
+    } finally {
+      if (hasIds) {
+        updateSeguimiento(criterioId!, idx!, { isSavingObservacion: false });
+      }
+    }
   };
 
   const macroActual = macroprocesos.find((m) => m.id === selectedMacroId);
 
-  /* ─── Render ─── */
   return (
     <div className="flex flex-col h-full items-center justify-center font-sans">
       <div className="w-full mb-6 flex flex-col items-start gap-4">
@@ -324,7 +344,6 @@ export default function SolicitudView({
           </p>
         </div>
 
-        {/* Selectors */}
         <div className="w-full max-w-4xl bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 flex-1 min-w-[250px]">
             <span className="text-sm font-semibold text-gray-700 shrink-0">Área:</span>
@@ -378,8 +397,6 @@ export default function SolicitudView({
         </div>
       ) : (
         <div className="w-full flex flex-col h-[80vh] min-h-[500px] bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
-          
-          {/* ─── Header ─── */}
           <div className="bg-[#272729] border-b border-white/10 flex flex-col shrink-0">
             <div className="px-8 py-4 flex items-center justify-between">
               <h2 className="text-white text-lg leading-tight">
@@ -414,9 +431,7 @@ export default function SolicitudView({
             </div>
           </div>
 
-          {/* ─── Body ─── */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
-            {/* Sidebar */}
             <aside className="w-64 shrink-0 bg-[#3d557c] flex flex-col border-r border-white/5">
               <OverlayScrollbarsComponent
                 element="nav"
@@ -447,7 +462,6 @@ export default function SolicitudView({
               </div>
             </aside>
 
-            {/* Main content */}
             <main className="flex-1 flex flex-col min-w-0 bg-[#f8f8f8]">
               {selectedCodigoId && (() => {
                 const obj = codigosEnMacro.find((c) => c.id === selectedCodigoId);
@@ -466,7 +480,6 @@ export default function SolicitudView({
                 className="flex-1 p-6"
               >
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                  {/* Table header */}
                   <div className="flex border-b border-gray-200 bg-gray-200/80 text-[11px] font-bold uppercase tracking-wider text-gray-500 shrink-0">
                     <div className="w-[5%] shrink-0 px-2 py-3 text-center">Cr.</div>
                     <div className="w-[30%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
@@ -476,7 +489,6 @@ export default function SolicitudView({
                     <div className="w-[23%] shrink-0 px-3 py-3 border-l border-gray-200">Fuente</div>
                   </div>
 
-                  {/* Rows */}
                   {criteriosFiltrados.length === 0 ? (
                     <div className="flex items-center justify-center py-20 text-gray-300 text-sm">
                       No hay criterios asignados.
@@ -488,16 +500,14 @@ export default function SolicitudView({
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-50/40" : "bg-white"}`}
+                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
                         >
-                          {/* Col 1 — Criterio */}
                           <div className="w-[5%] shrink-0 border-r border-gray-100 px-2 py-4 flex items-start justify-center">
                             <span className="font-mono text-xs font-bold text-gray-900 text-center break-all">
                               {criterio.codigo_criterio}
                             </span>
                           </div>
 
-                          {/* Cols 2-6 — Entregable rows stacked */}
                           <div className="w-[95%] shrink-0 flex flex-col min-w-0">
                             {entregables.length === 0 ? (
                               <div className="flex items-center px-4 py-3 text-xs text-gray-300 italic">
@@ -506,18 +516,13 @@ export default function SolicitudView({
                             ) : (
                               entregables.map((row, idx) => {
                                 const seg = row.seguimiento;
-                                const estadoColor = ESTADO_COLORS[seg.estado] ?? "bg-gray-100 text-gray-500 border-gray-200";
+                                const estadoColor = ESTADO_COLORS[seg.estado] ?? ESTADO_COLORS[""];
 
                                 return (
-                                  <div
-                                    key={row.id}
-                                    className={`flex flex-col ${idx !== 0 ? "border-t border-gray-100" : ""}`}
-                                  >
+                                  <div key={row.id} className={`flex flex-col ${idx !== 0 ? "border-t border-gray-100" : ""}`}>
                                     <div className="flex min-h-[72px]">
-                                      {/* Left side (Cols 2-4) */}
                                       <div className="w-[50.5%] flex items-stretch border-r border-gray-100">
-                                        {/* Entregable */}
-                                        <div className="w-[59.4%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
+                                        <div className="w-[62.5%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
                                           <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
                                             {row.descripcion}
                                           </p>
@@ -531,8 +536,7 @@ export default function SolicitudView({
                                             </button>
                                           </div>
                                         </div>
-                                        {/* Tipo */}
-                                        <div className="w-[11.9%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
+                                        <div className="w-[12.5%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
                                           {row.tipo_entregable ? (
                                             <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap">
                                               {TIPO_LABELS[row.tipo_entregable] ?? row.tipo_entregable}
@@ -541,27 +545,23 @@ export default function SolicitudView({
                                             <span className="text-gray-300 text-xs">—</span>
                                           )}
                                         </div>
-                                        {/* Estado */}
-                                        <div className="w-[28.7%] shrink-0 px-2 py-3 flex items-center">
+                                        <div className="w-[25%] shrink-0 px-2 py-3 flex items-center">
                                           <div className={`w-full text-center text-xs font-medium rounded-lg px-2 py-1.5 border ${estadoColor}`}>
                                             {seg.estado || "— Estado —"}
                                           </div>
                                         </div>
                                       </div>
 
-                                      {/* Right side (Cols 5-6) stacked rows of evidencias */}
                                       <div className="w-[49.5%] flex flex-col min-w-0">
                                         {row.evidencias.map((ev, evIdx) => (
                                           <div key={ev.id || evIdx} className={`flex items-stretch min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-100" : ""}`}>
-                                            {/* Evidencia */}
-                                            <div className="w-[51%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
+                                            <div className="w-[51.1%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
                                               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                                                 {ev.nombre_evidencia || <span className="text-gray-300 italic">Sin descripción</span>}
                                               </p>
                                             </div>
 
-                                            {/* Fuente */}
-                                            <div className="w-[49%] shrink-0 px-3 py-3 flex items-center relative group">
+                                            <div className="w-[48.9%] shrink-0 px-3 py-3 flex items-center relative group">
                                               {ev.link_evidencia ? (
                                                 <p className="text-sm text-blue-600 truncate pr-8 w-full select-all">
                                                   {ev.link_evidencia}
@@ -588,7 +588,6 @@ export default function SolicitudView({
                                       </div>
                                     </div>
 
-                                    {/* Observation Panel */}
                                     {seg.isObservacionOpen && (
                                       <div className="bg-amber-50 p-3 border-t border-amber-100/80 flex flex-col gap-2 relative">
                                         <div className="flex items-center justify-between">
@@ -630,7 +629,6 @@ export default function SolicitudView({
                   )}
                 </div>
 
-                {/* Stats */}
                 <div className="flex items-center justify-between mt-4 px-1">
                   <p className="text-xs text-gray-400">
                     Mostrando <span className="font-medium text-gray-600">{criteriosFiltrados.length}</span>{" "}
@@ -648,16 +646,15 @@ export default function SolicitudView({
         </div>
       )}
 
-      {/* Footer */}
       <div className="w-full mt-4 flex justify-end">
         <Link
-          href="/acreditacion/solicitud-documentos"
+          href={`/acreditacion/${proceso.id}`}
           className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm transition-colors font-medium"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Volver a Selección de Proceso
+          Volver al Dashboard
         </Link>
       </div>
     </div>

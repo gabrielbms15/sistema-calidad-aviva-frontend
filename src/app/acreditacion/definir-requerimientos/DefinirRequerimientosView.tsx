@@ -45,19 +45,14 @@ const TIPO_OPTIONS = [
   { value: "in_situ", label: "Observación" },
 ];
 
-/** Macroprocesos ocultos (por código) */
-const HIDDEN_MACROS = new Set(["AEX", "DIV"]);
+/** Macroprocesos ocultos (por orden) */
+const EXCLUDED_MACROS = new Set([8, 12]);
 
 /** Criterios ocultos (por codigo_criterio) */
-const HIDDEN_CRITERIOS = new Set([
-  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8",
-  "GRH4-1",
-  "MRA8-1", "MRA8-2", "MRA8-3",
-  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6",
-  "RCR4-1", "RCR4-2", "RCR4-3",
-  "GMD3-4", "GMD3-5",
-  "MRS1-1", "MRS1-2", "MRS1-3",
-  "MRS2-1", "MRS2-2",
+const EXCLUDED_CRITERIOS = new Set([
+  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3", 
+  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2", 
+  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2"
 ]);
 
 /* ─── Helpers ────────────────────────────────────────────── */
@@ -301,7 +296,7 @@ export default function DefinirRequerimientosView({
     ? criterios.filter((c) => c.codigo_id === selectedCodigoId)
     : criterios
   )
-    .filter((c) => !HIDDEN_CRITERIOS.has(c.codigo_criterio))
+    .filter((c) => !EXCLUDED_CRITERIOS.has(c.codigo_criterio))
     .sort((a, b) =>
       a.codigo_criterio.localeCompare(b.codigo_criterio, undefined, { numeric: true, sensitivity: "base" })
     );
@@ -355,7 +350,7 @@ export default function DefinirRequerimientosView({
               defer
               className="flex-1 py-3 px-4"
             >
-              {macroprocesos.filter((macro) => !HIDDEN_MACROS.has(macro.codigo)).map((macro) => {
+              {macroprocesos.filter((macro) => !EXCLUDED_MACROS.has(macro.orden)).map((macro) => {
                 const isActive = macro.id === selectedMacroId;
                 return (
                   <button
@@ -433,7 +428,7 @@ export default function DefinirRequerimientosView({
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-50/40" : "bg-white"}`}
+                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
                           <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center">

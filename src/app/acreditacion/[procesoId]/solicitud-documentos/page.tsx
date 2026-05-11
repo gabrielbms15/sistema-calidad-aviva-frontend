@@ -9,7 +9,6 @@ export default async function SolicitudDocumentosPage({
 }) {
   const { procesoId } = await params;
 
-  // 1. Cargar proceso
   const { data: proceso, error: pError } = await supabase
     .from("proceso_acreditacion")
     .select("id, anio, sede(id, nombre)")
@@ -29,7 +28,6 @@ export default async function SolicitudDocumentosPage({
     );
   }
 
-  // 2. Cargar responsables usando la RPC
   const { data: responsables, error: rError } = await supabase.rpc(
     "get_responsables_por_proceso",
     { p_proceso_id: procesoId }
@@ -41,7 +39,6 @@ export default async function SolicitudDocumentosPage({
     console.error("RPC Error Hint:", (rError as any).hint);
   }
 
-  // 3. Filtrar solo los responsables que tengan al menos un criterio asignado
   const { data: assignedRows } = await supabase
     .from("criterio_responsable")
     .select("responsable_id");
