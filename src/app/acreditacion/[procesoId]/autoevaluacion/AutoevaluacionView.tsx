@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
@@ -79,6 +79,9 @@ export default function AutoevaluacionView({ proceso, macroprocesos, macroproces
   );
   // Use functional updates everywhere to avoid stale closure bugs
   const [autoMap, setAutoMap] = useState<Record<string, AutoRow>>({});
+  // Keep a ref in sync so saveRow always reads the latest state (avoids stale closure)
+  const autoMapRef = useRef<Record<string, AutoRow>>({});
+  autoMapRef.current = autoMap;
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -114,6 +117,17 @@ export default function AutoevaluacionView({ proceso, macroprocesos, macroproces
       return next;
     });
   };
+
+  /* ─── Load initial autoevaluaciones on mount ─── */
+  useEffect(() => {
+    if (criteriosIniciales.length > 0) {
+      const ids = criteriosIniciales
+        .filter(c => !EXCLUDED_CRITERIOS.has(c.codigo_criterio))
+        .map(c => c.id);
+      loadAutos(ids);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ─── Macroproceso click ─── */
   const handleMacroClick = (macro: Macroproceso) => {
@@ -151,7 +165,8 @@ export default function AutoevaluacionView({ proceso, macroprocesos, macroproces
 
   /* ─── Save single row ─── */
   const saveRow = async (criterioId: string) => {
-    const row = autoMap[criterioId] ?? emptyRow(criterioId);
+    // Read from ref to avoid stale closure — always gets the latest state
+    const row = autoMapRef.current[criterioId] ?? emptyRow(criterioId);
     patchAuto(criterioId, { isSaving: true });
     try {
       const { data, error } = await supabase.from("autoevaluacion")
