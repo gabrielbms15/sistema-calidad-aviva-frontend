@@ -47,7 +47,11 @@ export default function GuiaTecnicaView({
 }: Props) {
   const [selectedMacroId, setSelectedMacroId] = useState(macroprocesoInicialId);
   const [codigos, setCodigos] = useState<Codigo[]>(codigosIniciales);
-  const [criterios, setCriterios] = useState<Criterio[]>(criteriosIniciales);
+  const [criterios, setCriterios] = useState<Criterio[]>(
+    [...criteriosIniciales].sort((a, b) =>
+      a.codigo_criterio.localeCompare(b.codigo_criterio, undefined, { numeric: true, sensitivity: "base" })
+    )
+  );
   const [selectedCodigoId, setSelectedCodigoId] = useState<string | null>(null);
   const [isVerificadoresMode, setIsVerificadoresMode] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -73,16 +77,22 @@ export default function GuiaTecnicaView({
           .from("criterio")
           .select("id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2")
           .in("codigo_id", ids);
-        setCriterios(nuevosCriterios ?? []);
+        const sorted = (nuevosCriterios ?? []).sort((a, b) =>
+          a.codigo_criterio.localeCompare(b.codigo_criterio, undefined, { numeric: true, sensitivity: "base" })
+        );
+        setCriterios(sorted);
       } else {
         setCriterios([]);
       }
     });
   };
 
-  const criteriosFiltrados = selectedCodigoId
+  const criteriosFiltrados = (selectedCodigoId
     ? criterios.filter((c) => c.codigo_id === selectedCodigoId)
-    : criterios;
+    : criterios
+  ).sort((a, b) =>
+    a.codigo_criterio.localeCompare(b.codigo_criterio, undefined, { numeric: true, sensitivity: "base" })
+  );
 
   const macroActual = macroprocesos.find((m) => m.id === selectedMacroId);
 
