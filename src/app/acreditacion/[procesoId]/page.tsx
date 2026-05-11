@@ -13,6 +13,11 @@ export default async function ProcesoDashboardPage({
     .from("proceso_acreditacion")
     .select("id, anio, sede(id, nombre)")
     .eq("id", procesoId)
+    .returns<{
+      id: string;
+      anio: number;
+      sede: { id: string; nombre: string } | null;
+    }>()
     .single();
 
   const cards = [
