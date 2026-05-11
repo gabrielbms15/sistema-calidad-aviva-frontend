@@ -58,6 +58,7 @@ export default async function RecopilacionEvidenciasPage({
         .from("criterio")
         .select(`
           id, codigo_criterio, descripcion, codigo_id,
+          fuente_0, fuente_1, fuente_2,
           entregable (
             id, descripcion, tipo_entregable, nota, orden,
             entregable_seguimiento (
@@ -76,7 +77,7 @@ export default async function RecopilacionEvidenciasPage({
         "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2"
       ]);
       
-      criteriosIniciales = (crRaw || []).filter(c => !EXCLUDED_CRITERIOS.has(c.codigo_criterio));
+      criteriosIniciales = (crRaw || []).filter((c: any) => !EXCLUDED_CRITERIOS.has(c.codigo_criterio));
     }
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
@@ -9,7 +9,16 @@ import "overlayscrollbars/overlayscrollbars.css";
 /* ─── Types ──────────────────────────────────────────────── */
 interface Macroproceso { id: string; codigo: string; nombre: string; orden: number; }
 interface Codigo { id: string; codigo: string; descripcion: string; orden: number; }
-interface CriterioData { id: string; codigo_criterio: string; descripcion: string; codigo_id: string; }
+interface CriterioData {
+  id: string;
+  codigo_criterio: string;
+  descripcion: string;
+  codigo_id: string;
+  fuente_0: string | null;
+  fuente_1: string | null;
+  fuente_2: string | null;
+  responsables: { nombre: string; apellido: string; cargo: string; area_nombre: string }[];
+}
 
 interface Seguimiento {
   id?: string;
@@ -126,7 +135,92 @@ function buildEntregables(c: any, procesoId: string): EntregableRow[] {
 }
 
 function extractCriterio(c: any): CriterioData {
-  return { id: c.id, codigo_criterio: c.codigo_criterio, descripcion: c.descripcion, codigo_id: c.codigo_id };
+  return {
+    id: c.id,
+    codigo_criterio: c.codigo_criterio,
+    descripcion: c.descripcion,
+    codigo_id: c.codigo_id,
+    fuente_0: c.fuente_0 ?? null,
+    fuente_1: c.fuente_1 ?? null,
+    fuente_2: c.fuente_2 ?? null,
+    responsables: [], // populated separately via fetchResponsablesForCriterios
+  };
+}
+
+/* ─── Separate responsable fetch ─── */
+async function fetchResponsablesForCriterios(
+  criterioIds: string[],
+  sedeId: string
+): Promise<Record<string, CriterioData["responsables"]>> {
+  if (!criterioIds.length) return {};
+
+  // Step 1: criterio_id → responsable_id
+  const { data: crRows } = await supabase
+    .from("criterio_responsable")
+    .select("criterio_id, responsable_id")
+    .in("criterio_id", criterioIds);
+  if (!crRows?.length) return {};
+
+  const responsableIds = [...new Set(crRows.map((r: any) => r.responsable_id))];
+
+  // Step 2: responsable → cargo + area_id
+  const { data: respRows } = await supabase
+    .from("responsable")
+    .select("id, cargo, area_id")
+    .in("id", responsableIds);
+  if (!respRows?.length) return {};
+
+  // Step 3: area → nombre
+  const areaIds = [...new Set(respRows.map((r: any) => r.area_id).filter(Boolean))];
+  const areaMap: Record<string, string> = {};
+  if (areaIds.length) {
+    const { data: areaRows } = await supabase
+      .from("area")
+      .select("id, nombre")
+      .in("id", areaIds);
+    for (const a of areaRows ?? []) areaMap[a.id] = a.nombre;
+  }
+
+  // Step 4: personal → nombre + apellido (all sedes, prefer proceso sede)
+  const { data: personalRows } = await supabase
+    .from("personal")
+    .select("responsable_id, sede_id, nombre, apellido")
+    .in("responsable_id", responsableIds);
+
+  // Prefer the person from the proceso sede; fall back to any match (corporate areas use Magdalena)
+  const personalByRespId: Record<string, { nombre: string; apellido: string }> = {};
+  for (const p of personalRows ?? []) {
+    const existing = personalByRespId[p.responsable_id];
+    if (!existing) {
+      // First found — take it as baseline
+      personalByRespId[p.responsable_id] = { nombre: p.nombre ?? "", apellido: p.apellido ?? "" };
+    } else if (p.sede_id === sedeId) {
+      // Override with the sede-specific person when found
+      personalByRespId[p.responsable_id] = { nombre: p.nombre ?? "", apellido: p.apellido ?? "" };
+    }
+  }
+
+  // responsable lookup
+  const respById: Record<string, { cargo: string; area_nombre: string; nombre: string; apellido: string }> = {};
+  for (const r of respRows) {
+    const persona = personalByRespId[r.id];
+    respById[r.id] = {
+      cargo: r.cargo ?? "",
+      area_nombre: areaMap[r.area_id] ?? "",
+      nombre: persona?.nombre ?? "",
+      apellido: persona?.apellido ?? "",
+    };
+  }
+
+  // Build criterio_id → responsables[]
+  const result: Record<string, CriterioData["responsables"]> = {};
+  for (const row of crRows) {
+    const resp = respById[row.responsable_id];
+    if (!resp) continue;
+    if (!result[row.criterio_id]) result[row.criterio_id] = [];
+    result[row.criterio_id].push(resp);
+  }
+  return result;
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -143,6 +237,32 @@ export default function EvidenciasView({
   const [selectedCodigoId, setSelectedCodigoId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isSavingAll, setIsSavingAll] = useState(false);
+  // Popover: "verf-{criterioId}" | "resp-{criterioId}" | null
+  const [activePopover, setActivePopover] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setActivePopover(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Load responsables for the initial criterios on mount
+  useEffect(() => {
+    const ids = criteriosIniciales.map((c: any) => c.id);
+    if (!ids.length) return;
+    fetchResponsablesForCriterios(ids, proceso.sede.id).then((respMap) => {
+      setCriterios((prev) =>
+        prev.map((c) => ({ ...c, responsables: respMap[c.id] ?? [] }))
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [entregableMap, setEntregableMap] = useState<Record<string, EntregableRow[]>>(() => {
     const map: Record<string, EntregableRow[]> = {};
@@ -173,6 +293,7 @@ export default function EvidenciasView({
           .from("criterio")
           .select(`
             id, codigo_criterio, descripcion, codigo_id,
+            fuente_0, fuente_1, fuente_2,
             entregable (
               id, descripcion, tipo_entregable, nota, orden,
               entregable_seguimiento (
@@ -189,8 +310,14 @@ export default function EvidenciasView({
 
         const rawArray = raw ?? [];
         const filteredArray = rawArray.filter((c: any) => !EXCLUDED_CRITERIOS.has(c.codigo_criterio));
+        const mappedCriterios = filteredArray.map(extractCriterio);
 
-        setCriterios(filteredArray.map(extractCriterio));
+        // Separate query for responsables
+        const criterioIds = mappedCriterios.map((c: CriterioData) => c.id);
+        const respMap = await fetchResponsablesForCriterios(criterioIds, proceso.sede.id);
+        const criteriosWithResp = mappedCriterios.map((c: CriterioData) => ({ ...c, responsables: respMap[c.id] ?? [] }));
+
+        setCriterios(criteriosWithResp);
         const newMap: Record<string, EntregableRow[]> = {};
         filteredArray.forEach((c: any) => {
           newMap[c.id] = buildEntregables(c, proceso.id);
@@ -532,11 +659,85 @@ export default function EvidenciasView({
                           key={criterio.id}
                           className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
                         >
-                          {/* Col 1 — Criterio */}
-                          <div className="w-[5%] shrink-0 border-r border-gray-100 px-2 py-4 flex items-start justify-center">
-                            <span className="font-mono text-xs font-bold text-gray-900 text-center break-all">
+                           {/* Col 1 — Criterio */}
+                          <div className="w-[5%] shrink-0 border-r border-gray-100 px-1.5 py-2 flex flex-col items-center justify-between">
+                            <span className="font-mono text-[10px] font-bold text-gray-900 text-center break-all leading-tight">
                               {criterio.codigo_criterio}
                             </span>
+                            {/* Info buttons — bottom, side by side */}
+                            <div className="flex items-center gap-1.5">
+                              {/* Verificadores */}
+                              <div className="relative" ref={activePopover === `verf-${criterio.id}` ? popoverRef : undefined}>
+                                <button
+                                  onClick={() => setActivePopover(activePopover === `verf-${criterio.id}` ? null : `verf-${criterio.id}`)}
+                                  title="Ver verificadores"
+                                  className="text-gray-400 hover:text-indigo-600 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                  </svg>
+                                </button>
+                                {activePopover === `verf-${criterio.id}` && (
+                                  <div className="absolute left-full ml-2 bottom-0 z-50 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Verificadores</p>
+                                    {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 ? (
+                                      <p className="text-xs text-gray-400 italic">Sin verificadores registrados.</p>
+                                    ) : (
+                                      <ul className="space-y-2">
+                                        {criterio.fuente_0 && (
+                                          <li className="flex items-start gap-2">
+                                            <span className="mt-1 w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                                            <span className="text-xs text-gray-700 leading-relaxed">{criterio.fuente_0}</span>
+                                          </li>
+                                        )}
+                                        {criterio.fuente_1 && (
+                                          <li className="flex items-start gap-2">
+                                            <span className="mt-1 w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
+                                            <span className="text-xs text-gray-700 leading-relaxed">{criterio.fuente_1}</span>
+                                          </li>
+                                        )}
+                                        {criterio.fuente_2 && (
+                                          <li className="flex items-start gap-2">
+                                            <span className="mt-1 w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+                                            <span className="text-xs text-gray-700 leading-relaxed">{criterio.fuente_2}</span>
+                                          </li>
+                                        )}
+                                      </ul>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Responsable */}
+                              <div className="relative" ref={activePopover === `resp-${criterio.id}` ? popoverRef : undefined}>
+                                <button
+                                  onClick={() => setActivePopover(activePopover === `resp-${criterio.id}` ? null : `resp-${criterio.id}`)}
+                                  title="Ver responsable"
+                                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                </button>
+                                {activePopover === `resp-${criterio.id}` && (
+                                  <div className="absolute left-full ml-2 bottom-0 z-50 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Responsable</p>
+                                    {criterio.responsables.length === 0 ? (
+                                      <p className="text-xs text-gray-400 italic">Sin responsable asignado.</p>
+                                    ) : (
+                                      <ul className="space-y-2.5">
+                                        {criterio.responsables.map((r, ri) => (
+                                          <li key={ri} className="text-xs text-gray-700 border-b border-gray-100 last:border-0 pb-2 last:pb-0">
+                                            <p className="font-semibold text-gray-900">{r.nombre} {r.apellido}</p>
+                                            <p className="text-gray-500">{r.cargo}</p>
+                                            <p className="text-indigo-600 font-medium">{r.area_nombre}</p>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
                           {/* Cols 2-7 — Entregable rows stacked */}
@@ -559,24 +760,28 @@ export default function EvidenciasView({
                                       {/* Left side (Cols 2-4) 41/95 = 43.2% */}
                                       <div className="w-[43.2%] flex items-stretch border-r border-gray-100">
                                         {/* Entregable 25/41 = 61% */}
-                                        <div className="w-[61%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
-                                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 pr-6">
+                                        <div className="w-[61%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative">
+                                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 pr-14">
                                             {row.descripcion}
                                           </p>
-                                          <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <div className="absolute bottom-2 right-2 flex gap-1">
                                             <button
                                               onClick={() => updateSeguimiento(criterio.id, idx, { isObservacionOpen: !seg.isObservacionOpen })}
-                                              className={`flex items-center justify-center w-5 h-5 rounded-md transition-colors shadow-sm font-bold text-[10px] ${seg.observacion ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                                              className={`transition-colors ${seg.observacion ? "text-amber-500 hover:text-amber-600" : "text-gray-400 hover:text-gray-600"}`}
                                               title="Añadir/Ver observación"
                                             >
-                                              📝
+                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                              </svg>
                                             </button>
                                             <button
                                               onClick={() => addEvidencia(criterio.id, idx)}
-                                              className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-md transition-colors shadow-sm font-bold text-xs"
+                                              className="text-gray-400 hover:text-blue-600 transition-colors"
                                               title="Añadir evidencia"
                                             >
-                                              +
+                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                              </svg>
                                             </button>
                                           </div>
                                         </div>

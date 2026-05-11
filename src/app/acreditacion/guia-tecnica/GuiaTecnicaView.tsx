@@ -53,7 +53,6 @@ export default function GuiaTecnicaView({
     )
   );
   const [selectedCodigoId, setSelectedCodigoId] = useState<string | null>(null);
-  const [isVerificadoresMode, setIsVerificadoresMode] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const handleMacroprocesoClick = (macro: Macroproceso) => {
@@ -216,22 +215,15 @@ export default function GuiaTecnicaView({
               ) : (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   {/* Table header */}
-                  <div className="grid grid-cols-[120px_1fr] border-b border-gray-200 bg-gray-200/80">
+                  <div className="grid grid-cols-[120px_1fr_1fr] border-b border-gray-200 bg-gray-200/80">
                     <div className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                       Criterio
                     </div>
-                    <div className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-500 border-l border-gray-200 flex items-center justify-between">
-                      <span>{isVerificadoresMode ? "Verificadores" : "Descripcion"}</span>
-                      <button
-                        onClick={() => setIsVerificadoresMode(!isVerificadoresMode)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${isVerificadoresMode ? 'bg-blue-600' : 'bg-gray-400'
-                          }`}
-                      >
-                        <span
-                          className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
-                          style={{ transform: isVerificadoresMode ? 'translateX(18px)' : 'translateX(3px)' }}
-                        />
-                      </button>
+                    <div className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-500 border-l border-gray-200">
+                      Descripción
+                    </div>
+                    <div className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-500 border-l border-gray-200">
+                      Verificadores
                     </div>
                   </div>
 
@@ -244,41 +236,43 @@ export default function GuiaTecnicaView({
                     criteriosFiltrados.map((criterio, i) => (
                       <div
                         key={criterio.id}
-                        className={`grid grid-cols-[120px_1fr] hover:bg-blue-50/30 transition-colors duration-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-200/60"
+                        className={`grid grid-cols-[120px_1fr_1fr] hover:bg-blue-50/30 transition-colors duration-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-200/60"
                           } ${i !== 0 ? "border-t border-gray-100" : ""}`}
                       >
-                        <div className="px-5 py-4 flex items-center">
+                        <div className="px-5 py-4 flex items-start mt-1">
                           <span className="font-mono text-xs font-bold text-gray-900">
                             {criterio.codigo_criterio}
                           </span>
                         </div>
-                        <div className="px-5 py-4 border-l border-gray-100 flex items-center">
-                          {!isVerificadoresMode ? (
-                            <p className="text-sm text-gray-600 leading-relaxed">
-                              {criterio.descripcion}
-                            </p>
-                          ) : (
-                            <ul className="text-sm text-gray-600 leading-relaxed space-y-2 w-full">
-                              {criterio.fuente_0 && (
-                                <li className="flex items-start gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-red-400 shrink-0 mt-1.5" />
-                                  <span>{criterio.fuente_0}</span>
-                                </li>
-                              )}
-                              {criterio.fuente_1 && (
-                                <li className="flex items-start gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-yellow-400 shrink-0 mt-1.5" />
-                                  <span>{criterio.fuente_1}</span>
-                                </li>
-                              )}
-                              {criterio.fuente_2 && (
-                                <li className="flex items-start gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-green-400 shrink-0 mt-1.5" />
-                                  <span>{criterio.fuente_2}</span>
-                                </li>
-                              )}
-                            </ul>
-                          )}
+                        <div className="px-5 py-4 border-l border-gray-100 flex items-start">
+                          <p className="text-sm text-gray-600 leading-relaxed">
+                            {criterio.descripcion}
+                          </p>
+                        </div>
+                        <div className="px-5 py-4 border-l border-gray-100 flex items-start">
+                          <ul className="text-sm text-gray-600 leading-relaxed space-y-2 w-full">
+                            {criterio.fuente_0 && (
+                              <li className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-red-400 shrink-0 mt-1.5" />
+                                <span>{criterio.fuente_0}</span>
+                              </li>
+                            )}
+                            {criterio.fuente_1 && (
+                              <li className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-yellow-400 shrink-0 mt-1.5" />
+                                <span>{criterio.fuente_1}</span>
+                              </li>
+                            )}
+                            {criterio.fuente_2 && (
+                              <li className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-green-400 shrink-0 mt-1.5" />
+                                <span>{criterio.fuente_2}</span>
+                              </li>
+                            )}
+                            {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 && (
+                              <span className="text-gray-400 italic">Sin verificadores</span>
+                            )}
+                          </ul>
                         </div>
                       </div>
                     ))
