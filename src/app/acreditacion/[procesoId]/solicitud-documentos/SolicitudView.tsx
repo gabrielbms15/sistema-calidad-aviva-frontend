@@ -52,22 +52,22 @@ interface Props {
 
 /* ─── Constants ──────────────────────────────────────────── */
 const TIPO_LABELS: Record<string, string> = {
-  documento:   "Doc.",
-  proceso:     "Proc.",
-  in_situ:     "Obs.",
-  ambos:       "Ambos",
+  documento: "Doc.",
+  proceso: "Proc.",
+  in_situ: "Obs.",
+  ambos: "Ambos",
 };
 
 const ESTADO_COLORS: Record<string, string> = {
-  "":             "bg-gray-50 text-gray-500 border-gray-300",
-  "cumplido":     "bg-green-100 text-green-700 border-green-200",
-  "parcial":      "bg-amber-100 text-amber-700 border-amber-200",
-  "no_cumplido":  "bg-red-100 text-red-700 border-red-200",
+  "": "bg-gray-50 text-gray-500 border-gray-300",
+  "cumplido": "bg-green-100 text-green-700 border-green-200",
+  "parcial": "bg-amber-100 text-amber-700 border-amber-200",
+  "no_cumplido": "bg-red-100 text-red-700 border-red-200",
 };
 
 const EXCLUDED_CRITERIOS = new Set([
-  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3", 
-  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2", 
+  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3",
+  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2",
   "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2"
 ]);
 
@@ -195,7 +195,7 @@ export default function SolicitudView({
       }
 
       const rawCriterios = raw ?? [];
-      
+
       const filteredCriterios = rawCriterios.filter((c: any) => {
         if (EXCLUDED_CRITERIOS.has(c.codigo_criterio)) return false;
         if (EXCLUDED_MACROS.has(c.codigo.macroproceso.orden)) return false;
@@ -204,11 +204,11 @@ export default function SolicitudView({
 
       const macroMap = new Map<string, Macroproceso>();
       const codigoMap = new Map<string, Codigo>();
-      
+
       filteredCriterios.forEach((c: any) => {
         const cod = c.codigo;
         const mac = cod.macroproceso;
-        
+
         if (!macroMap.has(mac.id)) {
           macroMap.set(mac.id, { id: mac.id, codigo: mac.codigo, nombre: mac.nombre, orden: mac.orden });
         }
@@ -223,7 +223,7 @@ export default function SolicitudView({
 
       const uniqueCriteriosMap = new Map<string, CriterioData>();
       newCriterios.forEach(c => uniqueCriteriosMap.set(c.id, c));
-      
+
       const newEMap: Record<string, EntregableRow[]> = {};
       filteredCriterios.forEach((c: any) => {
         newEMap[c.id] = buildEntregables(c, proceso.id);
@@ -233,7 +233,7 @@ export default function SolicitudView({
       setAllCodigos(newCodigos);
       setAllCriterios(Array.from(uniqueCriteriosMap.values()));
       setEntregableMap(newEMap);
-      
+
       setSelectedMacroId(newMacros.length > 0 ? newMacros[0].id : null);
       setSelectedCodigoId(null);
     });
@@ -291,7 +291,7 @@ export default function SolicitudView({
   const saveSeguimiento = async (entregableId: string, currentSeg: Seguimiento, patch?: Partial<Seguimiento>, criterioId?: string, idx?: number) => {
     const seg = { ...currentSeg, ...patch };
     const hasIds = criterioId !== undefined && idx !== undefined;
-    
+
     if (hasIds) {
       updateSeguimiento(criterioId!, idx!, { isSavingObservacion: true });
     }
@@ -376,7 +376,7 @@ export default function SolicitudView({
               ))}
             </select>
           </div>
-          
+
           {isPending && (
             <svg className="w-5 h-5 animate-spin text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -445,11 +445,10 @@ export default function SolicitudView({
                     <button
                       key={macro.id}
                       onClick={() => { setSelectedMacroId(macro.id); setSelectedCodigoId(null); }}
-                      className={`w-full text-left flex flex-col px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${
-                        isActive
-                          ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
-                          : "text-white/50 hover:text-white/80 hover:bg-white/5"
-                      }`}
+                      className={`w-full text-left flex flex-col px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${isActive
+                        ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
+                        : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                        }`}
                     >
                       <span className="font-bold text-sm tracking-wide mb-1 text-white">{macro.orden}. {macro.codigo}</span>
                       <span className={`text-[11px] leading-snug ${isActive ? "text-white" : "text-white/70"}`}>{macro.nombre}</span>
@@ -527,7 +526,7 @@ export default function SolicitudView({
                                             {row.descripcion}
                                           </p>
                                           <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button 
+                                            <button
                                               onClick={() => updateSeguimiento(criterio.id, idx, { isObservacionOpen: !seg.isObservacionOpen })}
                                               className={`flex items-center justify-center w-5 h-5 rounded-md transition-colors shadow-sm font-bold text-[10px] ${seg.observacion ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
                                               title="Añadir/Ver observación"
@@ -595,14 +594,14 @@ export default function SolicitudView({
                                             <span>📝</span> Observación
                                           </label>
                                           <div className="flex gap-2">
-                                            <button 
+                                            <button
                                               onClick={() => updateSeguimiento(criterio.id, idx, { isObservacionOpen: false })}
                                               className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700 transition-colors"
                                             >
                                               Cerrar
                                             </button>
-                                            <button 
-                                              onClick={() => saveObservacion(criterio.id, idx)}
+                                            <button
+                                              onClick={() => saveSeguimiento(row.id, seg, undefined, criterio.id, idx)}
                                               disabled={seg.isSavingObservacion}
                                               className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded font-medium transition-colors disabled:opacity-50 shadow-sm"
                                             >
@@ -613,7 +612,7 @@ export default function SolicitudView({
                                         <textarea
                                           value={seg.observacion}
                                           onChange={(e) => updateSeguimiento(criterio.id, idx, { observacion: e.target.value })}
-                                          placeholder="Escribe una observación o comentario adicional para este entregable..."
+                                          placeholder=" Escribe una observación o comentario adicional para este entregable..."
                                           className="w-full text-sm text-gray-700 bg-white/70 border border-amber-200/50 rounded-md p-2.5 resize-y focus:outline-none focus:ring-1 focus:ring-amber-400 focus:bg-white transition-colors min-h-[60px]"
                                         />
                                       </div>
