@@ -57,15 +57,17 @@ const EXCLUDED_CRITERIOS = new Set([
 
 /* ─── Helpers ────────────────────────────────────────────── */
 function buildEntregables(c: any): EntregableRow[] {
-  const rows: EntregableRow[] = (c.entregable ?? []).map((e: any) => ({
-    id: e.id,
-    criterio_id: c.id,
-    descripcion: e.descripcion ?? "",
-    tipo_entregable: e.tipo_entregable ?? "",
-    nota: e.nota ?? "",
-    orden: e.orden ?? 1,
-    isSaving: false,
-  }));
+  const rows: EntregableRow[] = (c.entregable ?? [])
+    .sort((a: any, b: any) => (a.orden ?? 1) - (b.orden ?? 1))
+    .map((e: any) => ({
+      id: e.id,
+      criterio_id: c.id,
+      descripcion: e.descripcion ?? "",
+      tipo_entregable: e.tipo_entregable ?? "",
+      nota: e.nota ?? "",
+      orden: e.orden ?? 1,
+      isSaving: false,
+    }));
   if (rows.length === 0) {
     rows.push({ criterio_id: c.id, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
   }
@@ -193,7 +195,12 @@ export default function DefinirRequerimientosView({
       // UPDATE existing entregable
       const { error } = await supabase
         .from("entregable")
-        .update({ descripcion: row.descripcion, tipo_entregable: row.tipo_entregable, nota: row.nota || null })
+        .update({ 
+          descripcion: row.descripcion, 
+          tipo_entregable: row.tipo_entregable, 
+          nota: row.nota || null,
+          orden: row.orden // Always sync order
+        })
         .eq("id", row.id);
       if (error) {
         alert("Error al actualizar el entregable.");
@@ -237,17 +244,41 @@ export default function DefinirRequerimientosView({
     setIsSavingAll(true);
     try {
       const promises: Promise<void>[] = [];
+      
+      // We'll iterate and force a re-sequence of everything currently in state
+      const updatedMap = { ...entregablesMap };
+
       for (const criterio of criteriosFiltrados) {
-        const rows = entregablesMap[criterio.id] ?? [];
-        for (let idx = 0; idx < rows.length; idx++) {
-          const row = rows[idx];
+        const rows = updatedMap[criterio.id] ?? [];
+        // Force sequential order based on current visual position
+        const remappedRows = rows.map((r, i) => ({ ...r, orden: i + 1 }));
+        updatedMap[criterio.id] = remappedRows;
+
+        for (let idx = 0; idx < remappedRows.length; idx++) {
+          const row = remappedRows[idx];
           if (row.descripcion.trim() && row.tipo_entregable) {
-            promises.push(saveEntregable(criterio.id, idx, true));
+            // We use a separate function or direct call to ensure we use the NEW order
+            promises.push((async () => {
+              const payload = { 
+                criterio_id: criterio.id, 
+                descripcion: row.descripcion, 
+                tipo_entregable: row.tipo_entregable, 
+                nota: row.nota || null, 
+                orden: row.orden 
+              };
+              if (row.id) {
+                await supabase.from("entregable").update(payload).eq("id", row.id);
+              } else {
+                await supabase.from("entregable").insert(payload);
+              }
+            })());
           }
         }
       }
+      
       await Promise.all(promises);
-      alert("Se han guardado todos los cambios correctamente.");
+      setEntregablesMap(updatedMap); // Update state to reflect new orders
+      alert("Se han sincronizado y guardado todos los cambios correctamente.");
     } catch (error) {
       console.error(error);
       alert("Ocurrió un error al guardar todo.");
@@ -285,10 +316,14 @@ export default function DefinirRequerimientosView({
     setEntregablesMap((prev) => {
       const rows = [...(prev[criterioId] ?? [])];
       rows.splice(idx, 1);
-      if (rows.length === 0) {
-        rows.push({ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
+      
+      // Re-map orders to ensure 1, 2, 3... sequence
+      const remappedRows = rows.map((r, i) => ({ ...r, orden: i + 1 }));
+      
+      if (remappedRows.length === 0) {
+        remappedRows.push({ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
       }
-      return { ...prev, [criterioId]: rows };
+      return { ...prev, [criterioId]: remappedRows };
     });
   };
 

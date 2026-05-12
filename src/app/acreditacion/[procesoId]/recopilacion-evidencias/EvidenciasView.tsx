@@ -261,7 +261,7 @@ export default function EvidenciasView({
         prev.map((c) => ({ ...c, responsables: respMap[c.id] ?? [] }))
       );
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [entregableMap, setEntregableMap] = useState<Record<string, EntregableRow[]>>(() => {
@@ -636,11 +636,11 @@ export default function EvidenciasView({
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex border-b border-gray-200 bg-gray-200/80 text-[11px] font-bold uppercase tracking-wider text-gray-500 shrink-0">
                   <div className="w-[5%] shrink-0 px-2 py-3 text-center">Cr.</div>
-                  <div className="w-[25%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
+                  <div className="w-[30%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
                   <div className="w-[5%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Tipo</div>
                   <div className="w-[11%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Estado</div>
-                  <div className="w-[25%] shrink-0 px-3 py-3 border-l border-gray-200">Evidencia</div>
-                  <div className="w-[24%] shrink-0 px-3 py-3 border-l border-gray-200">Fuente</div>
+                  <div className="w-[23%] shrink-0 px-3 py-3 border-l border-gray-200">Evidencia</div>
+                  <div className="w-[21%] shrink-0 px-3 py-3 border-l border-gray-200">Fuente</div>
                   <div className="w-[5%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Acción</div>
                 </div>
 
@@ -659,7 +659,7 @@ export default function EvidenciasView({
                           key={criterio.id}
                           className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
                         >
-                           {/* Col 1 — Criterio */}
+                          {/* Col 1 — Criterio */}
                           <div className="w-[5%] shrink-0 border-r border-gray-100 px-1.5 py-2 flex flex-col items-center justify-between">
                             <span className="font-mono text-[10px] font-bold text-gray-900 text-center break-all leading-tight">
                               {criterio.codigo_criterio}
@@ -757,11 +757,11 @@ export default function EvidenciasView({
                                     className={`flex flex-col ${idx !== 0 ? "border-t border-gray-100" : ""}`}
                                   >
                                     <div className="flex min-h-[72px]">
-                                      {/* Left side (Cols 2-4) 41/95 = 43.2% */}
-                                      <div className="w-[43.2%] flex items-stretch border-r border-gray-100">
-                                        {/* Entregable 25/41 = 61% */}
-                                        <div className="w-[61%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative">
-                                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 pr-14">
+                                      {/* Left side (Cols 2-4) 46/95 = 48.4% */}
+                                      <div className="w-[48.4%] flex items-stretch border-r border-gray-100">
+                                        {/* Entregable 30/46 = 65.2% */}
+                                        <div className="w-[65.2%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative">
+                                          <p className="text-sm text-gray-700 leading-relaxed pr-14">
                                             {row.descripcion}
                                           </p>
                                           <div className="absolute bottom-2 right-2 flex gap-1">
@@ -785,8 +785,8 @@ export default function EvidenciasView({
                                             </button>
                                           </div>
                                         </div>
-                                        {/* Tipo 5/41 = 12.2% */}
-                                        <div className="w-[12.2%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
+                                        {/* Tipo 5/46 = 10.9% */}
+                                        <div className="w-[10.9%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
                                           {row.tipo_entregable ? (
                                             <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap">
                                               {TIPO_LABELS[row.tipo_entregable] ?? row.tipo_entregable}
@@ -795,8 +795,8 @@ export default function EvidenciasView({
                                             <span className="text-gray-300 text-xs">—</span>
                                           )}
                                         </div>
-                                        {/* Estado 11/41 = 26.8% */}
-                                        <div className="w-[26.8%] shrink-0 px-2 py-3 flex items-center">
+                                        {/* Estado 11/46 = 23.9% */}
+                                        <div className="w-[23.9%] shrink-0 px-2 py-3 flex items-center">
                                           <select
                                             value={seg.estado}
                                             onChange={(e) => {
@@ -815,12 +815,12 @@ export default function EvidenciasView({
                                         </div>
                                       </div>
 
-                                      {/* Right side (Cols 5-7) 54/95 = 56.8% */}
-                                      <div className="w-[56.8%] flex flex-col min-w-0">
+                                      {/* Right side (Cols 5-7) 51.6% */}
+                                      <div className="w-[51.6%] flex flex-col min-w-0">
                                         {row.evidencias.map((ev, evIdx) => (
                                           <div key={ev.id || evIdx} className={`flex items-stretch min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-100" : ""}`}>
-                                            {/* Evidencia 25/54 = 46.3% */}
-                                            <div className="w-[46.3%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
+                                            {/* Evidencia 44.6% */}
+                                            <div className="w-[44.6%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
                                               <textarea
                                                 value={ev.nombre_evidencia}
                                                 onChange={(e) => updateEvidencia(criterio.id, idx, evIdx, { nombre_evidencia: e.target.value })}
@@ -830,8 +830,8 @@ export default function EvidenciasView({
                                               />
                                             </div>
 
-                                            {/* Fuente 24/54 = 44.4% */}
-                                            <div className="w-[44.4%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
+                                            {/* Fuente 45.3% */}
+                                            <div className="w-[45.3%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
                                               <input
                                                 type="text"
                                                 value={ev.link_evidencia}
@@ -854,8 +854,8 @@ export default function EvidenciasView({
                                               )}
                                             </div>
 
-                                            {/* Acción 5/54 = 9.3% */}
-                                            <div className="w-[9.3%] shrink-0 py-2 flex flex-col items-center justify-center gap-1.5">
+                                            {/* Acción 5/49 = 10.2% */}
+                                            <div className="w-[10.2%] shrink-0 py-2 flex flex-col items-center justify-center gap-1.5">
                                               <button
                                                 onClick={() => saveEvidencia(criterio.id, idx, evIdx)}
                                                 disabled={ev.isSaving}
@@ -943,7 +943,7 @@ export default function EvidenciasView({
                   <div className="flex items-center gap-4">
                     {selectedCodigoId && (
                       <button onClick={() => setSelectedCodigoId(null)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-                        Limpiar filtro ×
+                        Limpiar filtro
                       </button>
                     )}
                     <button
