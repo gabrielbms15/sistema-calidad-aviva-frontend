@@ -351,7 +351,7 @@ export default function EvidenciasView({
       const payload = {
         entregable_id: entregableId,
         proceso_id: proceso.id,
-        estado: seg.estado || null,
+        estado: seg.estado || "", // Ensure it's never null to satisfy DB constraint
         observacion: seg.observacion || null,
       };
 
