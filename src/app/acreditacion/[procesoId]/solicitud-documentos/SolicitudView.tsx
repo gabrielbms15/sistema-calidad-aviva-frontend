@@ -297,10 +297,11 @@ export default function SolicitudView({
     }
 
     try {
+      const finalEstado = seg.estado || 'parcial';
       const payload = {
         entregable_id: entregableId,
         proceso_id: proceso.id,
-        estado: seg.estado || null,
+        estado: finalEstado,
         observacion: seg.observacion || null,
       };
 
@@ -317,7 +318,7 @@ export default function SolicitudView({
 
       if (result.error) throw result.error;
       if (result.data && hasIds) {
-        updateSeguimiento(criterioId!, idx!, { id: result.data.id });
+        updateSeguimiento(criterioId!, idx!, { id: result.data.id, estado: finalEstado });
       }
     } catch (err: any) {
       console.error("Error saving seguimiento:", err.message || err.code || "Unknown error", err);
