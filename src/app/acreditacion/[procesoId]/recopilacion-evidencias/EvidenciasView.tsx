@@ -17,7 +17,7 @@ interface CriterioData {
   fuente_0: string | null;
   fuente_1: string | null;
   fuente_2: string | null;
-  responsables: { nombre: string; apellido: string; cargo: string; area_nombre: string }[];
+  responsables: { responsable_id?: string; nombre: string; apellido: string; cargo: string; area_nombre: string }[];
 }
 
 interface Seguimiento {
@@ -53,6 +53,7 @@ interface Props {
   macroprocesoInicialId: string;
   codigosIniciales: Codigo[];
   criteriosIniciales: any[];
+  responsables: { responsable_id: string; nombre: string; apellido: string; cargo: string; area_nombre: string }[];
 }
 
 /* ─── Constants ──────────────────────────────────────────── */
@@ -201,10 +202,11 @@ async function fetchResponsablesForCriterios(
   }
 
   // responsable lookup
-  const respById: Record<string, { cargo: string; area_nombre: string; nombre: string; apellido: string }> = {};
+  const respById: Record<string, { cargo: string; area_nombre: string; nombre: string; apellido: string; responsable_id?: string }> = {};
   for (const r of respRows) {
     const persona = personalByRespId[r.id];
     respById[r.id] = {
+      responsable_id: r.id,
       cargo: r.cargo ?? "",
       area_nombre: areaMap[r.area_id] ?? "",
       nombre: persona?.nombre ?? "",
@@ -230,11 +232,14 @@ export default function EvidenciasView({
   macroprocesoInicialId,
   codigosIniciales,
   criteriosIniciales,
+  responsables,
 }: Props) {
   const [selectedMacroId, setSelectedMacroId] = useState<string>(macroprocesoInicialId);
   const [codigos, setCodigos] = useState<Codigo[]>(codigosIniciales);
   const [criterios, setCriterios] = useState<CriterioData[]>(criteriosIniciales.map(extractCriterio));
   const [selectedCodigoId, setSelectedCodigoId] = useState<string | null>(null);
+  const [selectedArea, setSelectedArea] = useState<string>("");
+  const [selectedResponsableId, setSelectedResponsableId] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const [isSavingAll, setIsSavingAll] = useState(false);
   // Popover: "verf-{criterioId}" | "resp-{criterioId}" | null
@@ -503,31 +508,96 @@ export default function EvidenciasView({
   };
 
   /* ─── Filtering ─── */
+  const areas = useMemo(() => {
+    const set = new Set(responsables.map((r) => r.area_nombre));
+    return Array.from(set).sort();
+  }, [responsables]);
+
+  const responsablesDropdown = useMemo(() => {
+    if (!selectedArea) return [];
+    return responsables.filter((r) => r.area_nombre === selectedArea);
+  }, [selectedArea, responsables]);
+
   const criteriosFiltrados = useMemo(() => {
     let filtrados = criterios.filter((c) => !EXCLUDED_CRITERIOS.has(c.codigo_criterio));
     if (selectedCodigoId) {
       filtrados = filtrados.filter((c) => c.codigo_id === selectedCodigoId);
     }
+    
+    // Filter by Area and Responsable from the fetched responsables on criteria
+    if (selectedArea) {
+      filtrados = filtrados.filter(c => 
+        c.responsables.some(r => r.area_nombre === selectedArea)
+      );
+    }
+    if (selectedResponsableId) {
+      filtrados = filtrados.filter(c => 
+        c.responsables.some(r => r.responsable_id === selectedResponsableId)
+      );
+    }
+    
     return filtrados.sort((a, b) =>
       a.codigo_criterio.localeCompare(b.codigo_criterio, undefined, { numeric: true, sensitivity: "base" })
     );
-  }, [criterios, selectedCodigoId]);
+  }, [criterios, selectedCodigoId, selectedArea, selectedResponsableId]);
 
   const macroActual = macroprocesos.find((m) => m.id === selectedMacroId);
 
   /* ─── Render ─── */
   return (
     <div className="flex flex-col h-full items-center justify-center font-sans">
-      <div className="w-full mb-6 flex flex-col items-start gap-4">
-        <div>
-          <h1 className="text-gray-900 text-3xl font-extrabold leading-snug drop-shadow-sm">
-            Recopilación de Evidencias
-          </h1>
-          <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
-            <span className="bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded">Sede {proceso.sede.nombre}</span>
-            <span>·</span>
-            <span>Proceso de Acreditación {proceso.anio}</span>
-          </p>
+      <div className="w-full mb-4 flex flex-col items-start gap-3">
+        <h1 className="text-gray-900 text-3xl font-extrabold leading-snug drop-shadow-sm">
+          Recopilación de Evidencias
+        </h1>
+        
+        <div className="w-full bg-white px-4 py-2.5 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+          
+          {/* Izquierda: Filtros comprimidos */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-700 shrink-0">Área:</span>
+              <select
+                value={selectedArea}
+                onChange={(e) => {
+                  setSelectedArea(e.target.value);
+                  setSelectedResponsableId("");
+                }}
+                disabled={isPending}
+                className="w-48 appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-all"
+              >
+                <option value="">— Todas las Áreas —</option>
+                {areas.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-700 shrink-0">Responsable:</span>
+              <select
+                value={selectedResponsableId}
+                onChange={(e) => setSelectedResponsableId(e.target.value)}
+                disabled={isPending || !selectedArea}
+                className="w-56 appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-all disabled:opacity-50"
+              >
+                <option value="">Todos los responsables</option>
+                {responsablesDropdown.map((r) => (
+                  <option key={r.responsable_id} value={r.responsable_id}>
+                    {r.nombre} {r.apellido} | {r.cargo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Derecha: Sede y Periodo */}
+          <div className="flex items-center gap-2">
+            <span className="bg-blue-100 text-blue-700 font-semibold text-[11px] uppercase tracking-wider px-2 py-1 rounded">Sede {proceso.sede.nombre}</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-gray-600 text-xs font-medium">Proceso de Acreditación {proceso.anio}</span>
+          </div>
+
         </div>
       </div>
 
@@ -535,8 +605,8 @@ export default function EvidenciasView({
 
         {/* ─── Header ─── */}
         <div className="bg-[#272729] border-b border-white/10 flex flex-col shrink-0">
-          <div className="px-8 py-4 flex items-center justify-between">
-            <h2 className="text-white text-lg leading-tight">
+          <div className="px-8 py-2.5 flex items-center justify-between">
+            <h2 className="text-white text-base leading-tight">
               {macroActual ? (
                 <>
                   <span className="font-bold">Macroproceso {macroActual.orden}</span>
@@ -554,7 +624,7 @@ export default function EvidenciasView({
                   value={selectedCodigoId ?? ""}
                   onChange={(e) => setSelectedCodigoId(e.target.value || null)}
                   disabled={isPending}
-                  className="appearance-none bg-white border border-transparent text-gray-900 text-sm rounded-lg pl-3 pr-8 py-1.5 focus:outline-none cursor-pointer transition-all w-36 font-medium truncate disabled:opacity-50"
+                  className="w-40 appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-all disabled:opacity-50"
                 >
                   <option value="">Todos</option>
                   {codigos.map((c) => (
@@ -667,6 +737,26 @@ export default function EvidenciasView({
                             </span>
                             {/* Info buttons — bottom, side by side */}
                             <div className="flex items-center gap-1.5">
+                              {/* Descripción (Info) */}
+                              <div className="relative" ref={activePopover === `info-${criterio.id}` ? popoverRef : undefined}>
+                                <button
+                                  onClick={() => setActivePopover(activePopover === `info-${criterio.id}` ? null : `info-${criterio.id}`)}
+                                  title="Ver descripción"
+                                  className="text-gray-400 hover:text-emerald-600 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </button>
+                                {activePopover === `info-${criterio.id}` && (
+                                  <div className={`absolute left-full ml-2 ${ci < 2 ? "top-0" : "bottom-0"} z-50 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 p-3`}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Descripción</p>
+                                    <p className="text-xs text-gray-700 leading-relaxed">
+                                      {criterio.descripcion || <span className="italic text-gray-400">Sin descripción</span>}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                               {/* Verificadores */}
                               <div className="relative" ref={activePopover === `verf-${criterio.id}` ? popoverRef : undefined}>
                                 <button
@@ -679,7 +769,7 @@ export default function EvidenciasView({
                                   </svg>
                                 </button>
                                 {activePopover === `verf-${criterio.id}` && (
-                                  <div className="absolute left-full ml-2 bottom-0 z-50 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
+                                  <div className={`absolute left-full ml-2 ${ci < 2 ? "top-0" : "bottom-0"} z-50 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 p-3`}>
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Verificadores</p>
                                     {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 ? (
                                       <p className="text-xs text-gray-400 italic">Sin verificadores registrados.</p>
@@ -720,7 +810,7 @@ export default function EvidenciasView({
                                   </svg>
                                 </button>
                                 {activePopover === `resp-${criterio.id}` && (
-                                  <div className="absolute left-full ml-2 bottom-0 z-50 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
+                                  <div className={`absolute left-full ml-2 ${ci < 2 ? "top-0" : "bottom-0"} z-50 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 p-3`}>
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Responsable</p>
                                     {criterio.responsables.length === 0 ? (
                                       <p className="text-xs text-gray-400 italic">Sin responsable asignado.</p>

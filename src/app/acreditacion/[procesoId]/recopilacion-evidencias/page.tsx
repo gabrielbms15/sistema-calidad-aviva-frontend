@@ -81,6 +81,20 @@ export default async function RecopilacionEvidenciasPage({
     }
   }
 
+  const { data: responsablesRaw } = await supabase.rpc(
+    "get_responsables_por_proceso",
+    { p_proceso_id: procesoId }
+  );
+
+  const { data: assignedRows } = await supabase
+    .from("criterio_responsable")
+    .select("responsable_id");
+
+  const assignedIds = new Set((assignedRows || []).map((row) => row.responsable_id));
+  const responsables = (responsablesRaw || []).filter((r: any) => 
+    assignedIds.has(r.responsable_id)
+  );
+
   return (
     <EvidenciasView
       proceso={proceso as any}
@@ -88,6 +102,7 @@ export default async function RecopilacionEvidenciasPage({
       macroprocesoInicialId={macroprocesoInicialId}
       codigosIniciales={codigosIniciales}
       criteriosIniciales={criteriosIniciales}
+      responsables={responsables}
     />
   );
 }
