@@ -246,6 +246,11 @@ export default function EvidenciasView({
   const [activePopover, setActivePopover] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  // Global map: criterio_id → responsables[] for ALL macroprocesos.
+  // Populated once when the user first activates an area/responsable filter.
+  const [globalCriterioResp, setGlobalCriterioResp] = useState<Record<string, CriterioData["responsables"]> | null>(null);
+  const [isLoadingGlobal, setIsLoadingGlobal] = useState(false);
+
   // Close popover on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -268,6 +273,38 @@ export default function EvidenciasView({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When area/responsable filter is activated for the first time, load ALL
+  // criterio → responsable assignments so we can determine which macroprocesos
+  // contain matching criterios (to filter the sidebar).
+  useEffect(() => {
+    if (!selectedArea) return;          // no filter — nothing to load
+    if (globalCriterioResp !== null) return; // already loaded
+    if (isLoadingGlobal) return;
+
+    setIsLoadingGlobal(true);
+    (async () => {
+      // 1. Get every non-excluded criterio id across all macroprocesos
+      const { data: allCriterios } = await supabase
+        .from("criterio")
+        .select("id, codigo_criterio");
+
+      const validIds = (allCriterios ?? [])
+        .filter((c: any) => !EXCLUDED_CRITERIOS.has(c.codigo_criterio))
+        .map((c: any) => c.id);
+
+      if (!validIds.length) {
+        setGlobalCriterioResp({});
+        setIsLoadingGlobal(false);
+        return;
+      }
+
+      const respMap = await fetchResponsablesForCriterios(validIds, proceso.sede.id);
+      setGlobalCriterioResp(respMap);
+      setIsLoadingGlobal(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedArea]);
 
   const [entregableMap, setEntregableMap] = useState<Record<string, EntregableRow[]>>(() => {
     const map: Record<string, EntregableRow[]> = {};
@@ -541,6 +578,68 @@ export default function EvidenciasView({
     );
   }, [criterios, selectedCodigoId, selectedArea, selectedResponsableId]);
 
+
+
+  // criterio_id → macroproceso_id: built once alongside globalCriterioResp
+  const [criterioMacroMap, setCriterioMacroMap] = useState<Record<string, string>>({}); // criterio_id → macro_id
+
+  // Build the criterio→macro map when we load the global resp data
+  useEffect(() => {
+    if (!selectedArea) return;
+    if (globalCriterioResp === null) return;
+    if (Object.keys(criterioMacroMap).length > 0) return; // already built
+
+    // Fetch criterio_id → codigo_id → macroproceso_id
+    (async () => {
+      const { data: rows } = await supabase
+        .from("criterio")
+        .select("id, codigo_id, codigo(macroproceso_id)");
+
+      const map: Record<string, string> = {};
+      for (const row of rows ?? []) {
+        const macroId = (row as any).codigo?.macroproceso_id;
+        if (macroId) map[row.id] = macroId;
+      }
+      setCriterioMacroMap(map);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedArea, globalCriterioResp]);
+
+  // The actual set of valid macroproceso IDs under the current filter
+  const macroIdsValidos = useMemo((): Set<string> | null => {
+    if (!selectedArea) return null; // no filter — all macros visible
+    if (!globalCriterioResp || Object.keys(criterioMacroMap).length === 0) return null; // loading
+
+    const validMacros = new Set<string>();
+    for (const [criterioId, resps] of Object.entries(globalCriterioResp)) {
+      const matchesArea = resps.some(r => r.area_nombre === selectedArea);
+      const matchesResp = !selectedResponsableId || resps.some(r => r.responsable_id === selectedResponsableId);
+      if (matchesArea && matchesResp) {
+        const macroId = criterioMacroMap[criterioId];
+        if (macroId) validMacros.add(macroId);
+      }
+    }
+    return validMacros;
+  }, [selectedArea, selectedResponsableId, globalCriterioResp, criterioMacroMap]);
+
+  // Auto-navigate: when filter changes and current macro has no matching criterios,
+  // jump to the first valid macro.
+  const macroprocesosVisibles = useMemo(() => {
+    const base = macroprocesos.filter(m => !EXCLUDED_MACROS.has(m.orden));
+    if (!macroIdsValidos) return base;
+    return base.filter(m => macroIdsValidos.has(m.id));
+  }, [macroprocesos, macroIdsValidos]);
+
+  useEffect(() => {
+    if (!macroIdsValidos) return; // no filter or still loading
+    if (macroIdsValidos.size === 0) return;
+    if (macroIdsValidos.has(selectedMacroId)) return; // current macro is fine
+    // Navigate to first valid macro
+    const first = macroprocesosVisibles[0];
+    if (first) handleMacroprocesoClick(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [macroIdsValidos]);
+
   const macroActual = macroprocesos.find((m) => m.id === selectedMacroId);
 
   /* ─── Render ─── */
@@ -663,7 +762,16 @@ export default function EvidenciasView({
               defer
               className="flex-1 py-3 px-4"
             >
-              {macroprocesos.filter(m => !EXCLUDED_MACROS.has(m.orden)).map((macro) => {
+              {isLoadingGlobal && selectedArea && (
+                <div className="flex items-center gap-2 px-4 py-2 mb-2">
+                  <svg className="w-3.5 h-3.5 animate-spin text-white/40" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span className="text-[10px] text-white/40">Filtrando...</span>
+                </div>
+              )}
+              {macroprocesosVisibles.map((macro) => {
                 const isActive = macro.id === selectedMacroId;
                 return (
                   <button
@@ -679,6 +787,9 @@ export default function EvidenciasView({
                   </button>
                 );
               })}
+              {macroIdsValidos && macroprocesosVisibles.length === 0 && !isLoadingGlobal && (
+                <p className="text-[11px] text-white/30 italic px-4 py-3">Sin macroprocesos para esta área.</p>
+              )}
             </OverlayScrollbarsComponent>
             <div className="px-5 py-4 border-t border-white/5">
               <p className="text-[10px] text-white/20">Sistema de Calidad · Aviva</p>

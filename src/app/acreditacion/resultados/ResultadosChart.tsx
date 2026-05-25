@@ -89,7 +89,7 @@ function ChartView({ rows }: { rows: (MacroprocesoData & { avance: number })[] }
         element="div"
         options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }}
         defer
-        className="flex-1 px-8 py-6"
+        className="px-8 py-6"
       >
         {rows.length === 0 ? (
           <EmptyState />
@@ -167,7 +167,7 @@ function ChartView({ rows }: { rows: (MacroprocesoData & { avance: number })[] }
 
 function TableView({ rows }: { rows: MacroprocesoData[] }) {
   if (rows.length === 0) return (
-    <OverlayScrollbarsComponent element="div" options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }} defer className="flex-1 p-8">
+    <OverlayScrollbarsComponent element="div" options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }} defer className="p-8">
       <EmptyState />
     </OverlayScrollbarsComponent>
   );
@@ -177,7 +177,7 @@ function TableView({ rows }: { rows: MacroprocesoData[] }) {
       element="div"
       options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }}
       defer
-      className="flex-1"
+      className="w-full"
     >
       <table className="w-full text-sm border-collapse">
         <thead className="sticky top-0 z-20">
@@ -408,7 +408,7 @@ export default function ResultadosChart({ procesos, dataByProceso }: Props) {
   }, [macrosActivos, filterTipo, sortOrder]);
 
   return (
-    <div className="flex flex-col h-full font-sans">
+    <div className="flex flex-col font-sans">
       <header className="mb-8">
         <h1 className="text-3xl font-extrabold text-gray-900 leading-tight tracking-tight">
           Resultados y Tablero de Control
@@ -418,7 +418,7 @@ export default function ResultadosChart({ procesos, dataByProceso }: Props) {
         </p>
       </header>
 
-      <div className="flex-1 bg-white/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 overflow-hidden flex flex-col ring-1 ring-black/[0.02]">
+      <div className="bg-white/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 flex flex-col ring-1 ring-black/[0.02]">
 
         {/* Card header */}
         <div className="bg-[#1C1C1E]/95 backdrop-blur-xl px-8 py-4 border-b border-white/10 shrink-0 flex items-center justify-between gap-4 flex-wrap">
