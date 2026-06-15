@@ -9,7 +9,21 @@ import "overlayscrollbars/overlayscrollbars.css";
 /* ─── Types ──────────────────────────────────────────────── */
 interface Macroproceso { id: string; codigo: string; nombre: string; orden: number; }
 interface Codigo { id: string; codigo: string; descripcion: string; orden: number; macroproceso_id: string; }
-interface CriterioData { id: string; codigo_criterio: string; descripcion: string; codigo_id: string; }
+interface CriterioData { 
+  id: string; 
+  codigo_criterio: string; 
+  descripcion: string; 
+  codigo_id: string; 
+  asignacion?: {
+    id?: string;
+    fecha_asignacion: string | null;
+    fecha_seguimiento: string | null;
+    fecha_deadline: string | null;
+    isSavingF1?: boolean;
+    isSavingF2?: boolean;
+    isSavingF3?: boolean;
+  };
+}
 
 interface Seguimiento {
   id?: string;
@@ -68,7 +82,7 @@ const ESTADO_COLORS: Record<string, string> = {
 const EXCLUDED_CRITERIOS = new Set([
   "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3",
   "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2",
-  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2"
+  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2", "ATH6-1", "ATH6-2"
 ]);
 
 const EXCLUDED_MACROS = new Set([8, 12]);
@@ -120,8 +134,20 @@ function buildEntregables(c: any, procesoId: string): EntregableRow[] {
     });
 }
 
-function extractCriterio(c: any): CriterioData {
-  return { id: c.id, codigo_criterio: c.codigo_criterio, descripcion: c.descripcion, codigo_id: c.codigo_id };
+function extractCriterio(c: any, procesoId: string): CriterioData {
+  const asig = (c.asignacion ?? []).find((a: any) => a.proceso_id === procesoId);
+  return { 
+    id: c.id, 
+    codigo_criterio: c.codigo_criterio, 
+    descripcion: c.descripcion, 
+    codigo_id: c.codigo_id,
+    asignacion: {
+      id: asig?.id,
+      fecha_asignacion: asig?.fecha_asignacion ?? null,
+      fecha_seguimiento: asig?.fecha_seguimiento ?? null,
+      fecha_deadline: asig?.fecha_deadline ?? null,
+    }
+  };
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -184,6 +210,9 @@ export default function SolicitudView({
                 id, nombre_evidencia, link_evidencia, orden
               )
             )
+          ),
+          asignacion (
+            id, fecha_asignacion, fecha_seguimiento, fecha_deadline, proceso_id
           )
         `)
         .in("criterio_responsable.responsable_id", ids);
@@ -219,7 +248,7 @@ export default function SolicitudView({
 
       const newMacros = Array.from(macroMap.values()).sort((a, b) => a.orden - b.orden);
       const newCodigos = Array.from(codigoMap.values()).sort((a, b) => a.orden - b.orden);
-      const newCriterios = filteredCriterios.map(extractCriterio);
+      const newCriterios = filteredCriterios.map(c => extractCriterio(c, proceso.id));
 
       const uniqueCriteriosMap = new Map<string, CriterioData>();
       newCriterios.forEach(c => uniqueCriteriosMap.set(c.id, c));
@@ -327,6 +356,81 @@ export default function SolicitudView({
         updateSeguimiento(criterioId!, idx!, { isSavingObservacion: false });
       }
     }
+  };
+
+  const updateCriterioAsignacion = (criterioId: string, patch: Partial<CriterioData["asignacion"]>) => {
+    setAllCriterios(prev => prev.map(c => c.id === criterioId ? {
+      ...c, asignacion: { ...c.asignacion, ...patch } as any
+    } : c));
+  };
+
+  const saveAsignacion = async (criterioId: string, field: "fecha_asignacion" | "fecha_seguimiento" | "fecha_deadline", value: string | null) => {
+    const isSavingField = field === "fecha_asignacion" ? "isSavingF1" : field === "fecha_seguimiento" ? "isSavingF2" : "isSavingF3";
+    updateCriterioAsignacion(criterioId, { [isSavingField]: true });
+
+    try {
+      const current = allCriterios.find(c => c.id === criterioId)?.asignacion;
+      const payload = {
+        proceso_id: proceso.id,
+        criterio_id: criterioId,
+        fecha_asignacion: field === "fecha_asignacion" ? value : current?.fecha_asignacion,
+        fecha_seguimiento: field === "fecha_seguimiento" ? value : current?.fecha_seguimiento,
+        fecha_deadline: field === "fecha_deadline" ? value : current?.fecha_deadline,
+      };
+
+      let result;
+      if (current?.id) {
+        result = await supabase.from("asignacion").update(payload).eq("id", current.id).select("id").single();
+      } else {
+        result = await supabase.from("asignacion").upsert(payload, { onConflict: "proceso_id, criterio_id" }).select("id").single();
+      }
+
+      if (result.error) throw result.error;
+      updateCriterioAsignacion(criterioId, { id: result.data.id, [field]: value });
+    } catch (err: any) {
+      console.error("Error saving asignacion:", err);
+      alert("Error al guardar la fecha.");
+    } finally {
+      updateCriterioAsignacion(criterioId, { [isSavingField]: false });
+    }
+  };
+
+  const renderAsignacionDate = (criterioId: string, field: "fecha_asignacion"| "fecha_seguimiento"| "fecha_deadline", val: string | null | undefined, isSaving: boolean | undefined) => {
+    return (
+      <div className="flex flex-col gap-1 w-full relative group/date px-2">
+         <input 
+            type="date"
+            value={val || ""}
+            onChange={(e) => updateCriterioAsignacion(criterioId, { [field]: e.target.value || null })}
+            className="w-full text-[11px] p-1.5 border border-transparent bg-transparent hover:bg-white hover:border-gray-200 rounded focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all outline-none text-gray-700"
+         />
+         <div className="flex justify-center gap-2 opacity-0 group-hover/date:opacity-100 transition-opacity absolute -bottom-7 left-0 right-0 z-20 bg-white shadow border border-gray-200 rounded-md py-1 mx-2">
+            <button 
+               onClick={() => saveAsignacion(criterioId, field, val || null)}
+               disabled={isSaving}
+               className="text-green-600 hover:bg-green-50 p-1 rounded transition-colors disabled:opacity-50"
+               title="Guardar fecha"
+            >
+               {isSaving ? (
+                 <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+               ) : (
+                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+               )}
+            </button>
+            <button 
+               onClick={() => {
+                 updateCriterioAsignacion(criterioId, { [field]: null });
+                 saveAsignacion(criterioId, field, null);
+               }}
+               disabled={isSaving || !val}
+               className={`text-red-500 hover:bg-red-50 p-1 rounded transition-colors ${!val ? "opacity-30 cursor-not-allowed" : "disabled:opacity-50"}`}
+               title="Borrar fecha"
+            >
+               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+         </div>
+      </div>
+    );
   };
 
   const macroActual = macroprocesos.find((m) => m.id === selectedMacroId);
@@ -479,14 +583,21 @@ export default function SolicitudView({
                 defer
                 className="flex-1 p-6"
               >
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-w-[1100px]">
                   <div className="flex border-b border-gray-200 bg-gray-200/80 text-[11px] font-bold uppercase tracking-wider text-gray-500 shrink-0">
                     <div className="w-[5%] shrink-0 px-2 py-3 text-center">Cr.</div>
-                    <div className="w-[30%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
-                    <div className="w-[6%]  shrink-0 px-2 py-3 border-l border-gray-200 text-center">Tipo</div>
-                    <div className="w-[12%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Estado</div>
-                    <div className="w-[24%] shrink-0 px-3 py-3 border-l border-gray-200">Evidencia</div>
-                    <div className="w-[23%] shrink-0 px-3 py-3 border-l border-gray-200">Fuente</div>
+                    <div className="w-[74%] flex shrink-0 min-w-0">
+                      <div className="w-[38%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
+                      <div className="w-[7%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Tipo</div>
+                      <div className="w-[14%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Estado</div>
+                      <div className="w-[21%] shrink-0 px-3 py-3 border-l border-gray-200">Evidencia</div>
+                      <div className="w-[20%] shrink-0 px-3 py-3 border-l border-gray-200">Fuente</div>
+                    </div>
+                    <div className="w-[21%] flex shrink-0 min-w-0 bg-gray-300/30">
+                      <div className="w-[33.3%] shrink-0 px-2 py-3 border-l border-gray-200 text-center" title="Fecha de Asignación">F. Asig.</div>
+                      <div className="w-[33.3%] shrink-0 px-2 py-3 border-l border-gray-200 text-center" title="Fecha de Seguimiento">F. Seg.</div>
+                      <div className="w-[33.3%] shrink-0 px-2 py-3 border-l border-gray-200 text-center" title="Deadline">Deadline</div>
+                    </div>
                   </div>
 
                   {criteriosFiltrados.length === 0 ? (
@@ -508,7 +619,7 @@ export default function SolicitudView({
                             </span>
                           </div>
 
-                          <div className="w-[95%] shrink-0 flex flex-col min-w-0">
+                          <div className="w-[74%] shrink-0 flex flex-col min-w-0">
                             {entregables.length === 0 ? (
                               <div className="flex items-center px-4 py-3 text-xs text-gray-300 italic">
                                 Sin entregables definidos.
@@ -521,8 +632,8 @@ export default function SolicitudView({
                                 return (
                                   <div key={row.id} className={`flex flex-col ${idx !== 0 ? "border-t border-gray-100" : ""}`}>
                                     <div className="flex min-h-[72px]">
-                                      <div className="w-[50.5%] flex items-stretch border-r border-gray-100">
-                                        <div className="w-[62.5%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
+                                      <div className="w-[59%] flex items-stretch border-r border-gray-100">
+                                        <div className="w-[64.4%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
                                           <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
                                             {row.descripcion}
                                           </p>
@@ -536,7 +647,7 @@ export default function SolicitudView({
                                             </button>
                                           </div>
                                         </div>
-                                        <div className="w-[12.5%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
+                                        <div className="w-[11.8%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
                                           {row.tipo_entregable ? (
                                             <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap">
                                               {TIPO_LABELS[row.tipo_entregable] ?? row.tipo_entregable}
@@ -545,23 +656,23 @@ export default function SolicitudView({
                                             <span className="text-gray-300 text-xs">—</span>
                                           )}
                                         </div>
-                                        <div className="w-[25%] shrink-0 px-2 py-3 flex items-center">
+                                        <div className="w-[23.8%] shrink-0 px-2 py-3 flex items-center">
                                           <div className={`w-full text-center text-xs font-medium rounded-lg px-2 py-1.5 border ${estadoColor}`}>
                                             {seg.estado || "— Estado —"}
                                           </div>
                                         </div>
                                       </div>
 
-                                      <div className="w-[49.5%] flex flex-col min-w-0">
+                                      <div className="w-[41%] flex flex-col min-w-0">
                                         {row.evidencias.map((ev, evIdx) => (
                                           <div key={ev.id || evIdx} className={`flex items-stretch min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-100" : ""}`}>
-                                            <div className="w-[51.1%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
+                                            <div className="w-[51.2%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
                                               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                                                 {ev.nombre_evidencia || <span className="text-gray-300 italic">Sin descripción</span>}
                                               </p>
                                             </div>
 
-                                            <div className="w-[48.9%] shrink-0 px-3 py-3 flex items-center relative group">
+                                            <div className="w-[48.8%] shrink-0 px-3 py-3 flex items-center relative group">
                                               {ev.link_evidencia ? (
                                                 <p className="text-sm text-blue-600 truncate pr-8 w-full select-all">
                                                   {ev.link_evidencia}
@@ -622,6 +733,18 @@ export default function SolicitudView({
                                 );
                               })
                             )}
+                          </div>
+
+                          <div className="w-[21%] shrink-0 flex items-stretch border-l border-gray-200 bg-gray-50/30">
+                            <div className="w-[33.3%] flex flex-col items-center justify-center py-4 border-r border-gray-100">
+                              {renderAsignacionDate(criterio.id, "fecha_asignacion", criterio.asignacion?.fecha_asignacion, criterio.asignacion?.isSavingF1)}
+                            </div>
+                            <div className="w-[33.3%] flex flex-col items-center justify-center py-4 border-r border-gray-100">
+                              {renderAsignacionDate(criterio.id, "fecha_seguimiento", criterio.asignacion?.fecha_seguimiento, criterio.asignacion?.isSavingF2)}
+                            </div>
+                            <div className="w-[33.3%] flex flex-col items-center justify-center py-4">
+                              {renderAsignacionDate(criterio.id, "fecha_deadline", criterio.asignacion?.fecha_deadline, criterio.asignacion?.isSavingF3)}
+                            </div>
                           </div>
                         </div>
                       );

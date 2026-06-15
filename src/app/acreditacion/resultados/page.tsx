@@ -1,28 +1,23 @@
 export const dynamic = "force-dynamic";
 
 import { supabase } from "@/lib/supabase";
-import ResultadosChart, {
+import ResultadosClientContainer from "./ResultadosClientContainer";
+import {
   ProcesoOption,
   MacroprocesoData,
-  EstandarData,
-  CriterioRaw,
 } from "./ResultadosChart";
-import EntregablesChart, {
+import {
   MacroprocesoEntregable,
-  EstandarEntregable,
-  CriterioEntregable,
-  EntregableRaw,
 } from "./EntregablesChart";
-import ResponsablesTable, {
+import {
   ResponsableRow,
-  EstadoKey,
 } from "./ResponsablesTable";
 
 /* ─── Excluded criterios (same set used everywhere) ──────── */
 const EXCLUDED_CRITERIOS = new Set([
   "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3",
   "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2",
-  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2",
+  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2", "ATH6-1", "ATH6-2",
 ]);
 const EXCLUDED_MACROS_ORDEN = new Set([8, 12]);
 
@@ -364,10 +359,11 @@ export default async function ResultadosPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-10">
-      <ResultadosChart procesos={procesos} dataByProceso={dataByProceso} />
-      <EntregablesChart procesos={procesos} dataByProceso={entregablesByProceso} />
-      <ResponsablesTable procesos={procesos} dataByProceso={responsablesByProceso} />
-    </div>
+    <ResultadosClientContainer
+      procesos={procesos}
+      dataByProceso={dataByProceso}
+      entregablesByProceso={entregablesByProceso}
+      responsablesByProceso={responsablesByProceso}
+    />
   );
 }

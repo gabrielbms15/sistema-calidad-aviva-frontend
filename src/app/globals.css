@@ -1,8 +1,26 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Avenir Next LT Pro Regular';
+  src: url('/fonts/AvenirNextLTPro-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Next LT Pro Demi';
+  src: url('/fonts/AvenirNextLTPro-Demi.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-avenir: 'Avenir Next LT Pro Regular', sans-serif;
+  --font-avenir-demi: 'Avenir Next LT Pro Demi', sans-serif;
 }
 
 @layer base {
