@@ -5,12 +5,18 @@ import ResultadosClientContainer from "./ResultadosClientContainer";
 import {
   ProcesoOption,
   MacroprocesoData,
+  EstandarData,
+  CriterioRaw,
 } from "./ResultadosChart";
 import {
   MacroprocesoEntregable,
+  EstandarEntregable,
+  CriterioEntregable,
+  EntregableRaw,
 } from "./EntregablesChart";
 import {
   ResponsableRow,
+  EstadoKey,
 } from "./ResponsablesTable";
 
 /* ─── Excluded criterios (same set used everywhere) ──────── */
