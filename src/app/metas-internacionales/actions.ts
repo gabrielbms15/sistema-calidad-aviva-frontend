@@ -52,3 +52,15 @@ export async function getFallasPorPregunta(setId: string, procesoId: string) {
   }
   return { data, error: null };
 }
+
+export async function getEvaluacionesPorEvaluador(procesoId: string) {
+  const { data, error } = await supabaseAdmin.rpc("get_evaluaciones_por_evaluador", {
+    p_proceso_id: procesoId,
+  });
+
+  if (error) {
+    console.error("[actions/prevalencias] Error get_evaluaciones_por_evaluador:", error);
+    return { data: null, error };
+  }
+  return { data, error: null };
+}

@@ -6,10 +6,13 @@ import {
   getCumplimientoUpss,
   getCumplimientoGrupoProfesional,
   getFallasPorPregunta,
+  getEvaluacionesPorEvaluador,
 } from "@/app/metas-internacionales/actions";
 import {
   BarChart,
   Bar,
+  PieChart,
+  Pie,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -62,6 +65,11 @@ interface FallaPorPregunta {
   porcentaje_no: number;
 }
 
+interface EvaluacionPorEvaluador {
+  evaluador_nombre: string;
+  total_evaluaciones: number;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const BRAND = "#2b3f64";
@@ -99,7 +107,7 @@ function ChartCard({
   empty: boolean;
 }) {
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4">
+    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 h-full">
       <div>
         <h2 className="text-base font-bold text-gray-800">{title}</h2>
         {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
@@ -144,6 +152,50 @@ function CustomTooltip({ active, payload, label }: {
   );
 }
 
+// Custom tick para XAxis que divide el texto largo en dos líneas
+function CustomXAxisTick({ x, y, payload }: any) {
+  const words = payload.value.split(" ");
+  let line1 = payload.value;
+  let line2 = "";
+  
+  if (words.length > 3) {
+    const half = Math.ceil(words.length / 2);
+    line1 = words.slice(0, half).join(" ");
+    line2 = words.slice(half).join(" ");
+  } else if (words.length === 3) {
+    line1 = words.slice(0, 2).join(" ");
+    line2 = words[2];
+  } else if (words.length === 2) {
+    line1 = words[0];
+    line2 = words[1];
+  }
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={12} textAnchor="middle" fill="#6b7280" fontSize={11}>
+        <tspan x={0} dy="0">{line1}</tspan>
+        {line2 && <tspan x={0} dy="16">{line2}</tspan>}
+      </text>
+    </g>
+  );
+}
+
+// Custom tooltip para PieChart
+function CustomPieTooltip({ active, payload }: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number }>;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl shadow-xl px-4 py-3">
+      <p className="text-xs text-gray-500 mb-1 font-medium">{payload[0].name}</p>
+      <p className="text-lg font-bold text-[#2b3f64]">
+        {payload[0].value} <span className="text-sm font-normal text-gray-500">sets</span>
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function DashboardPrevalencias({
@@ -164,6 +216,7 @@ export default function DashboardPrevalencias({
   const [dataGlobal, setDataGlobal] = useState<CumplimientoGlobalSet[]>([]);
   const [dataGrupo, setDataGrupo] = useState<CumplimientoPorGrupo[]>([]);
   const [dataFallas, setDataFallas] = useState<FallaPorPregunta[]>([]);
+  const [dataEvaluadores, setDataEvaluadores] = useState<EvaluacionPorEvaluador[]>([]);
 
   const [mostrarTodasFallas, setMostrarTodasFallas] = useState(false);
 
@@ -171,10 +224,15 @@ export default function DashboardPrevalencias({
   const cargarDatosGlobales = useCallback(async () => {
     if (!proceso) return;
     setLoadingGlobal(true);
-    const { data } = await getCumplimientoGlobal(proceso.id);
-    setDataGlobal((data ?? []).sort(
+    const [resGlobal, resEvaluadores] = await Promise.all([
+      getCumplimientoGlobal(proceso.id),
+      getEvaluacionesPorEvaluador(proceso.id),
+    ]);
+    
+    setDataGlobal((resGlobal.data ?? []).sort(
       (a: CumplimientoGlobalSet, b: CumplimientoGlobalSet) => a.set_orden - b.set_orden
     ));
+    setDataEvaluadores(resEvaluadores.data ?? []);
     setLoadingGlobal(false);
   }, [proceso]);
 
@@ -270,7 +328,7 @@ export default function DashboardPrevalencias({
           loading={loadingBySet}
           empty={!loadingBySet && dataUpss.length === 0}
         >
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={420}>
             <BarChart
               data={dataUpss}
               layout="vertical"
@@ -316,7 +374,7 @@ export default function DashboardPrevalencias({
           loading={loadingBySet}
           empty={!loadingBySet && dataGrupo.length === 0}
         >
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={420}>
             <BarChart
               data={dataGrupo}
               layout="vertical"
@@ -356,53 +414,106 @@ export default function DashboardPrevalencias({
         </ChartCard>
       </div>
 
-      {/* Gráfica 2 — Cumplimiento global por set (ancho completo) */}
-      <ChartCard
-        title="Cumplimiento Global por Set"
-        subtitle="Todos los sets del proceso — actualización única al cargar"
-        loading={loadingGlobal}
-        empty={!loadingGlobal && dataGlobal.length === 0}
-      >
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart
-            data={dataGlobal}
-            margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
+      {/* Fila 2: Gráfica 2 (Global por Set) y Gráfica 4 (Evaluaciones por Evaluador) */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* Gráfica 2 — Cumplimiento global por set */}
+        <div className="lg:col-span-7">
+          <ChartCard
+            title="Cumplimiento Global por Set"
+            subtitle="Todos los sets del proceso — actualización única al cargar"
+            loading={loadingGlobal}
+            empty={!loadingGlobal && dataGlobal.length === 0}
           >
-            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis
-              dataKey="set_nombre"
-              tick={{ fontSize: 11, fill: "#6b7280" }}
-              axisLine={false}
-              tickLine={false}
-              interval={0}
-              // Wraps long labels
-              height={50}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tickFormatter={(v) => `${v}%`}
-              tick={{ fontSize: 11, fill: "#9ca3af" }}
-              axisLine={false}
-              tickLine={false}
-              width={44}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
-            <Bar dataKey="porcentaje_cumplimiento" radius={[6, 6, 0, 0]} maxBarSize={52}>
-              {dataGlobal.map((entry, i) => (
-                <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-              ))}
-              <LabelList
-                dataKey="porcentaje_cumplimiento"
-                position="top"
-                formatter={pctLabel}
-                style={{ fontSize: 11, fontWeight: 700, fill: "#374151" }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+            <div className="flex-1 w-full min-h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={dataGlobal}
+                  margin={{ top: 16, right: 24, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="set_nombre"
+                    tick={<CustomXAxisTick />}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    height={45}
+                    tickMargin={16}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={44}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
+                  <Bar dataKey="porcentaje_cumplimiento" radius={[6, 6, 0, 0]} maxBarSize={52}>
+                    {dataGlobal.map((entry, i) => (
+                      <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                    ))}
+                    <LabelList
+                      dataKey="porcentaje_cumplimiento"
+                      position="top"
+                      formatter={pctLabel}
+                      style={{ fontSize: 11, fontWeight: 700, fill: "#374151" }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+        </div>
 
-      {/* Listado 4 — Top preguntas con mayor falla */}
+        {/* Gráfica 4 — Evaluaciones por Evaluador */}
+        <div className="lg:col-span-3 flex flex-col">
+          <ChartCard
+            title="Participación de Evaluadores"
+            subtitle="Sets completados por evaluador en este proceso"
+            loading={loadingGlobal}
+            empty={!loadingGlobal && dataEvaluadores.length === 0}
+          >
+            <div className="flex-1 w-full min-h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                  data={dataEvaluadores}
+                  dataKey="total_evaluaciones"
+                  nameKey="evaluador_nombre"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={110}
+                  paddingAngle={5}
+                >
+                  {dataEvaluadores.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomPieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Custom Legend */}
+            <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2">
+              {dataEvaluadores.map((entry, index) => (
+                <div key={index} className="flex items-center gap-1.5">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
+                  />
+                  <span className="text-[11px] font-medium text-gray-600">
+                    {entry.evaluador_nombre} ({entry.total_evaluaciones})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </ChartCard>
+        </div>
+      </div>
+
+      {/* Listado 5 — Top preguntas con mayor falla */}
       <ChartCard
         title="Preguntas con Mayor Tasa de Fallo"
         subtitle={setSeleccionado ? `${setSeleccionado.nombre} — ordenadas de mayor a menor falla` : undefined}
