@@ -7,6 +7,7 @@ import {
   getCumplimientoGrupoProfesional,
   getFallasPorPregunta,
   getEvaluacionesPorEvaluador,
+  getDistribucionEvaluacionesPorSet,
 } from "@/app/metas-internacionales/actions";
 import {
   BarChart,
@@ -43,6 +44,7 @@ interface CumplimientoPorUpss {
   total_si: number;
   total_no: number;
   porcentaje_cumplimiento: number;
+  total_evaluados?: number;
 }
 
 interface CumplimientoGlobalSet {
@@ -54,6 +56,7 @@ interface CumplimientoGlobalSet {
 interface CumplimientoPorGrupo {
   grupo_profesional: string;
   porcentaje_cumplimiento: number;
+  total_evaluados?: number;
 }
 
 interface FallaPorPregunta {
@@ -68,6 +71,11 @@ interface FallaPorPregunta {
 interface EvaluacionPorEvaluador {
   evaluador_nombre: string;
   total_evaluaciones: number;
+}
+
+interface DistribucionEvaluaciones {
+  set_nombre: string;
+  total: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -181,16 +189,17 @@ function CustomXAxisTick({ x, y, payload }: any) {
 }
 
 // Custom tooltip para PieChart
-function CustomPieTooltip({ active, payload }: {
+function CustomPieTooltip({ active, payload, unit = "sets" }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number }>;
+  unit?: string;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-xl px-4 py-3">
       <p className="text-xs text-gray-500 mb-1 font-medium">{payload[0].name}</p>
       <p className="text-lg font-bold text-[#2b3f64]">
-        {payload[0].value} <span className="text-sm font-normal text-gray-500">sets</span>
+        {payload[0].value} <span className="text-sm font-normal text-gray-500">{unit}</span>
       </p>
     </div>
   );
@@ -217,6 +226,7 @@ export default function DashboardPrevalencias({
   const [dataGrupo, setDataGrupo] = useState<CumplimientoPorGrupo[]>([]);
   const [dataFallas, setDataFallas] = useState<FallaPorPregunta[]>([]);
   const [dataEvaluadores, setDataEvaluadores] = useState<EvaluacionPorEvaluador[]>([]);
+  const [dataDistribucion, setDataDistribucion] = useState<DistribucionEvaluaciones[]>([]);
 
   const [mostrarTodasFallas, setMostrarTodasFallas] = useState(false);
 
@@ -224,15 +234,17 @@ export default function DashboardPrevalencias({
   const cargarDatosGlobales = useCallback(async () => {
     if (!proceso) return;
     setLoadingGlobal(true);
-    const [resGlobal, resEvaluadores] = await Promise.all([
+    const [resGlobal, resEvaluadores, resDistribucion] = await Promise.all([
       getCumplimientoGlobal(proceso.id),
       getEvaluacionesPorEvaluador(proceso.id),
+      getDistribucionEvaluacionesPorSet(proceso.id),
     ]);
     
     setDataGlobal((resGlobal.data ?? []).sort(
       (a: CumplimientoGlobalSet, b: CumplimientoGlobalSet) => a.set_orden - b.set_orden
     ));
     setDataEvaluadores(resEvaluadores.data ?? []);
+    setDataDistribucion(resDistribucion.data ?? []);
     setLoadingGlobal(false);
   }, [proceso]);
 
@@ -248,7 +260,22 @@ export default function DashboardPrevalencias({
       getFallasPorPregunta(setId, proceso.id),
     ]);
 
-    setDataUpss(resUpss.data ?? []);
+    const rawUpss = resUpss.data ?? [];
+    const formattedUpss = rawUpss.map((item: CumplimientoPorUpss) => {
+      let nombre = item.upss;
+      // Normalizar para evitar problemas de mayúsculas/minúsculas
+      const lower = nombre.toLowerCase();
+      if (lower.includes("unidad de cuidados intensivos adulto")) {
+        nombre = "UCI ADULTOS";
+      } else if (lower.includes("unidad de cuidados intensivos neonatal")) {
+        nombre = "UCI NEONATAL";
+      } else if (lower.includes("central de esterilizaci")) {
+        nombre = "ESTERILIZACION";
+      }
+      return { ...item, upss: nombre };
+    });
+
+    setDataUpss(formattedUpss);
     setDataGrupo(resGrupo.data ?? []);
     setDataFallas(resFallas.data ?? []);
     setLoadingBySet(false);
@@ -332,7 +359,7 @@ export default function DashboardPrevalencias({
             <BarChart
               data={dataUpss}
               layout="vertical"
-              margin={{ top: 4, right: 60, left: 4, bottom: 4 }}
+              margin={{ top: 4, right: 110, left: 4, bottom: 4 }}
             >
               <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
@@ -346,7 +373,7 @@ export default function DashboardPrevalencias({
               <YAxis
                 type="category"
                 dataKey="upss"
-                width={110}
+                width={130}
                 tick={{ fontSize: 11, fill: "#6b7280" }}
                 axisLine={false}
                 tickLine={false}
@@ -357,10 +384,16 @@ export default function DashboardPrevalencias({
                   <Cell key={i} fill={colorForValue(entry.porcentaje_cumplimiento)} />
                 ))}
                 <LabelList
-                  dataKey="porcentaje_cumplimiento"
-                  position="right"
-                  formatter={pctLabel}
-                  style={{ fontSize: 11, fontWeight: 600, fill: "#374151" }}
+                  content={(props: any) => {
+                    const { x, y, width, height, index } = props;
+                    const item = dataUpss[index];
+                    if (!item || item.porcentaje_cumplimiento == null) return null;
+                    return (
+                      <text x={Number(x) + Number(width) + 8} y={Number(y) + Number(height) / 2 + 4} fill="#374151" fontSize={11} fontWeight={600}>
+                        {item.porcentaje_cumplimiento.toFixed(1)}% <tspan fill="#9ca3af" fontSize={10} fontWeight={500}>(n = {item.total_evaluados || 0})</tspan>
+                      </text>
+                    );
+                  }}
                 />
               </Bar>
             </BarChart>
@@ -378,7 +411,7 @@ export default function DashboardPrevalencias({
             <BarChart
               data={dataGrupo}
               layout="vertical"
-              margin={{ top: 4, right: 60, left: 4, bottom: 4 }}
+              margin={{ top: 4, right: 110, left: 4, bottom: 4 }}
             >
               <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
@@ -403,10 +436,16 @@ export default function DashboardPrevalencias({
                   <Cell key={i} fill={colorForValue(entry.porcentaje_cumplimiento)} />
                 ))}
                 <LabelList
-                  dataKey="porcentaje_cumplimiento"
-                  position="right"
-                  formatter={pctLabel}
-                  style={{ fontSize: 11, fontWeight: 600, fill: "#374151" }}
+                  content={(props: any) => {
+                    const { x, y, width, height, index } = props;
+                    const item = dataGrupo[index];
+                    if (!item || item.porcentaje_cumplimiento == null) return null;
+                    return (
+                      <text x={Number(x) + Number(width) + 8} y={Number(y) + Number(height) / 2 + 4} fill="#374151" fontSize={11} fontWeight={600}>
+                        {item.porcentaje_cumplimiento.toFixed(1)}% <tspan fill="#9ca3af" fontSize={10} fontWeight={500}>(n = {item.total_evaluados || 0})</tspan>
+                      </text>
+                    );
+                  }}
                 />
               </Bar>
             </BarChart>
@@ -513,74 +552,124 @@ export default function DashboardPrevalencias({
         </div>
       </div>
 
-      {/* Listado 5 — Top preguntas con mayor falla */}
-      <ChartCard
-        title="Preguntas con Mayor Tasa de Fallo"
-        subtitle={setSeleccionado ? `${setSeleccionado.nombre} — ordenadas de mayor a menor falla` : undefined}
-        loading={loadingBySet}
-        empty={!loadingBySet && dataFallas.length === 0}
-      >
-        <div className="flex flex-col gap-3">
-          {fallasVisibles.map((falla, i) => (
-            <div key={falla.pregunta_id} className="flex items-start gap-4 group">
-              {/* Rank badge */}
-              <div
-                className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold mt-0.5"
-                style={{ backgroundColor: `${BRAND}10`, color: BRAND }}
-              >
-                {i + 1}
-              </div>
-              {/* Bar + texto */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-700 font-medium leading-snug mb-1.5 line-clamp-2">
-                  {falla.texto}
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${falla.porcentaje_no}%`,
-                        backgroundColor: colorForValue(100 - falla.porcentaje_no),
-                      }}
-                    />
+      {/* Fila 3: Preguntas con mayor falla y Distribución de Evaluaciones */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard
+          title="Preguntas con Mayor Tasa de Fallo"
+          subtitle={setSeleccionado ? `${setSeleccionado.nombre} — ordenadas de mayor a menor falla` : undefined}
+          loading={loadingBySet}
+          empty={!loadingBySet && dataFallas.length === 0}
+        >
+          <div className="flex flex-col gap-3">
+            {fallasVisibles.filter(f => f.porcentaje_no != null).map((falla, i) => (
+              <div key={falla.pregunta_id} className="flex items-start gap-4 group">
+                {/* Rank badge */}
+                <div
+                  className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold mt-0.5"
+                  style={{ backgroundColor: `${BRAND}10`, color: BRAND }}
+                >
+                  {i + 1}
+                </div>
+                {/* Bar + texto */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-700 font-medium leading-snug mb-1.5 line-clamp-2">
+                    {falla.texto}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${falla.porcentaje_no}%`,
+                          backgroundColor: colorForValue(100 - falla.porcentaje_no),
+                        }}
+                      />
+                    </div>
+                    <span
+                      className="text-sm font-bold shrink-0 w-14 text-right"
+                      style={{ color: colorForValue(100 - falla.porcentaje_no) }}
+                    >
+                      {falla.porcentaje_no.toFixed(1)}% NO
+                    </span>
                   </div>
-                  <span
-                    className="text-sm font-bold shrink-0 w-14 text-right"
-                    style={{ color: colorForValue(100 - falla.porcentaje_no) }}
-                  >
-                    {falla.porcentaje_no.toFixed(1)}% NO
-                  </span>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {/* Ver todas */}
-          {dataFallas.length > 5 && (
-            <button
-              onClick={() => setMostrarTodasFallas((v) => !v)}
-              className="mt-2 self-start text-xs font-semibold text-[#2b3f64] hover:text-[#1e2d4a] flex items-center gap-1 transition-colors"
-            >
-              {mostrarTodasFallas ? (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                  Ver menos
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  Ver todas ({dataFallas.length} preguntas)
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </ChartCard>
+            {/* Ver todas */}
+            {dataFallas.length > 5 && (
+              <button
+                onClick={() => setMostrarTodasFallas((v) => !v)}
+                className="mt-2 self-start text-xs font-semibold text-[#2b3f64] hover:text-[#1e2d4a] flex items-center gap-1 transition-colors"
+              >
+                {mostrarTodasFallas ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    Ver menos
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Ver todas ({dataFallas.length} preguntas)
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </ChartCard>
+
+        {/* Gráfica 5 — Distribución de Evaluaciones */}
+        <ChartCard
+          title="Distribución de Evaluaciones"
+          subtitle="Evaluaciones completadas por proceso"
+          loading={loadingGlobal}
+          empty={!loadingGlobal && dataDistribucion.length === 0}
+        >
+          <div className="flex-1 w-full min-h-[300px] flex flex-col">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={dataDistribucion}
+                  dataKey="total"
+                  nameKey="set_nombre"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={110}
+                  paddingAngle={5}
+                >
+                  {dataDistribucion.map((entry, index) => (
+                    <Cell key={`cell-dist-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomPieTooltip unit="evaluaciones" />} />
+              </PieChart>
+            </ResponsiveContainer>
+            
+            {/* Custom Legend */}
+            <div className="mt-4 flex flex-col gap-2">
+              {dataDistribucion.map((entry, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
+                  />
+                  <span className="text-xs font-medium text-gray-700 flex-1 truncate" title={entry.set_nombre}>
+                    {entry.set_nombre}
+                  </span>
+                  <span className="text-xs font-bold text-gray-900 shrink-0">
+                    {entry.total}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </ChartCard>
+      </div>
     </div>
   );
 }

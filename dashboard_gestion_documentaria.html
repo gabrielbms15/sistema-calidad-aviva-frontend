@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Gestión Documentaria</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg-body: #f3f4f6;
+      --bg-card: #ffffff;
+      --text-main: #1f2937;
+      --text-muted: #6b7280;
+      --text-light: #9ca3af;
+      --border-color: #e5e7eb;
+      
+      --c-1: #2A6F82;
+      --c-2: #49A3C3;
+      --c-3: #37836B;
+      --c-4: #49C39A;
+      --c-5: #F0997B;
+      --c-6: #E24B4A;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+      background-color: var(--bg-body); 
+      color: var(--text-main); 
+      height: 100vh; 
+      width: 100vw; 
+      overflow: hidden; 
+      display: flex; 
+      flex-direction: column;
+    }
+
+    .dashboard {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      gap: 1.25rem;
+    }
+
+    /* Header */
+    .header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      flex-shrink: 0; 
+    }
+    .header-title { 
+      font-size: 1.35rem; 
+      font-weight: 600; 
+      color: var(--text-main); 
+    }
+    .header-subtitle { 
+      font-size: 0.85rem; 
+      color: var(--text-muted); 
+      margin-top: 0.25rem; 
+    }
+    .badge { 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px; 
+      font-size: 0.8rem; 
+      padding: 6px 12px; 
+      border-radius: 9999px; 
+      font-weight: 600; 
+    }
+    .badge-ok { 
+      background: #d1fae5; 
+      color: #065f46; 
+      border: 1px solid #34d399;
+    }
+
+    /* Metrics */
+    .metrics { 
+      display: flex; 
+      gap: 1rem; 
+      flex-shrink: 0; 
+    }
+    .metric { 
+      flex: 1; 
+      background: var(--bg-card); 
+      border-radius: 12px; 
+      padding: 1rem; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+      border: 1px solid var(--border-color); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+    }
+    .metric-title { 
+      font-size: 0.75rem; 
+      color: var(--text-muted); 
+      text-transform: uppercase; 
+      letter-spacing: 0.05em; 
+      font-weight: 600; 
+      margin-bottom: 0.5rem; 
+    }
+    .metric-value { 
+      font-size: 1.85rem; 
+      font-weight: 700; 
+      line-height: 1; 
+      margin-bottom: 0.35rem; 
+    }
+    .metric-sub { 
+      font-size: 0.75rem; 
+      color: var(--text-muted); 
+    }
+
+    /* Grid Layout */
+    .grid-layout {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 1rem;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Cards */
+    .card { 
+      background: var(--bg-card); 
+      border-radius: 12px; 
+      padding: 1rem; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04); 
+      border: 1px solid var(--border-color); 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
+    }
+    .card-title { 
+      font-size: 0.85rem; 
+      font-weight: 600; 
+      color: var(--text-main); 
+      margin-bottom: 0.85rem; 
+      flex-shrink: 0; 
+    }
+    .card-content { 
+      flex: 1; 
+      min-height: 0; 
+      position: relative; 
+      display: flex; 
+      flex-direction: column; 
+    }
+    
+    .chart-container { 
+      position: relative; 
+      width: 100%; 
+      height: 100%; 
+      flex: 1; 
+      min-height: 0; 
+    }
+
+    /* Scrollable Lists inside cards */
+    .list-wrapper { 
+      overflow-y: auto; 
+      padding-right: 0.5rem; 
+      flex: 1; 
+      min-height: 0; 
+    }
+    .list-wrapper::-webkit-scrollbar { 
+      width: 6px; 
+    }
+    .list-wrapper::-webkit-scrollbar-thumb { 
+      background: #d1d5db; 
+      border-radius: 6px; 
+    }
+    .list-wrapper::-webkit-scrollbar-track {
+      background: #f3f4f6;
+      border-radius: 6px;
+    }
+
+    /* Overdue List Items */
+    .overdue-item { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 0.6rem 0; 
+      border-bottom: 1px solid var(--border-color); 
+    }
+    .overdue-item:last-child { border-bottom: none; }
+    .overdue-info { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 0.25rem; 
+      overflow: hidden; 
+    }
+    .overdue-doc { 
+      font-size: 0.8rem; 
+      font-weight: 600; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+      color: var(--text-main); 
+    }
+    .overdue-stage { 
+      font-size: 0.7rem; 
+      color: var(--text-muted); 
+    }
+    .overdue-days { 
+      font-size: 0.7rem; 
+      padding: 3px 8px; 
+      border-radius: 6px; 
+      font-weight: 600; 
+      background: #fee2e2; 
+      color: #991b1b; 
+      white-space: nowrap; 
+    }
+
+    /* UPS/UPSS List Items */
+    .ups-item { 
+      display: flex; 
+      align-items: center; 
+      gap: 0.5rem; 
+      padding: 0.4rem 0; 
+      font-size: 0.75rem; 
+      border-bottom: 1px solid #f9fafb; 
+    }
+    .ups-item:last-child { border-bottom: none; }
+    .ups-name { 
+      flex: 1; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+      color: var(--text-muted); 
+      font-weight: 500;
+    }
+    .ups-bar-bg { 
+      width: 65px; 
+      height: 6px; 
+      background: #e5e7eb; 
+      border-radius: 3px; 
+      overflow: hidden; 
+    }
+    .ups-bar-fill { 
+      height: 100%; 
+      border-radius: 3px; 
+    }
+    .ups-count { 
+      font-weight: 600; 
+      width: 20px; 
+      text-align: right; 
+      color: var(--text-main); 
+    }
+  </style>
+</head>
+<body>
+
+<div class="dashboard">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">Dashboard de Gestión Documentaria</div>
+      <div class="header-subtitle">Aviva Perú — actualizado al 22 junio 2026</div>
+    </div>
+    <div>
+      <span class="badge badge-ok">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><path d="M22 4L12 14.01l-3-3"></path></svg> 
+        &nbsp;3 flujos activos
+      </span>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-title">Total Documentos</div>
+      <div class="metric-value" style="color: var(--c-1);">214</div>
+      <div class="metric-sub">en base documentaria</div>
+    </div>
+    <div class="metric">
+      <div class="metric-title">En Flujo Activo</div>
+      <div class="metric-value" style="color: var(--c-2);">28</div>
+      <div class="metric-sub">pendientes de cierre</div>
+    </div>
+    <div class="metric">
+      <div class="metric-title">Inc. Este Mes</div>
+      <div class="metric-value" style="color: var(--c-3);">17</div>
+      <div class="metric-sub">↑ 4 vs mes anterior</div>
+    </div>
+    <div class="metric">
+      <div class="metric-title">Inc. Esta Semana</div>
+      <div class="metric-value" style="color: var(--c-4);">6</div>
+      <div class="metric-sub">lun – vie</div>
+    </div>
+    <div class="metric">
+      <div class="metric-title">Fuera de Plazo</div>
+      <div class="metric-value" style="color: var(--c-6);">5</div>
+      <div class="metric-sub">sin respuesta +5 días</div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="grid-layout">
+    
+    <!-- Row 1 -->
+    <div class="card">
+      <div class="card-title">Estado de flujos</div>
+      <div class="card-content">
+        <div class="chart-container">
+          <canvas id="chartEstadoFlujo"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column: span 2;">
+      <div class="card-title">Documentos incorporados por mes y sede</div>
+      <div class="card-content">
+        <div class="chart-container">
+          <canvas id="chartMesSede"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Documentos fuera de plazo</div>
+      <div class="card-content">
+        <div class="list-wrapper">
+          <div class="overdue-item">
+            <div class="overdue-info"><span class="overdue-doc" title="PR-SST-012 Uso de EPP">PR-SST-012 Uso de EPP</span><span class="overdue-stage">Pendiente revisor</span></div>
+            <span class="overdue-days">8 días</span>
+          </div>
+          <div class="overdue-item">
+            <div class="overdue-info"><span class="overdue-doc" title="IN-CAL-007 Auditoría interna">IN-CAL-007 Auditoría</span><span class="overdue-stage">Pendiente aprobador</span></div>
+            <span class="overdue-days">7 días</span>
+          </div>
+          <div class="overdue-item">
+            <div class="overdue-info"><span class="overdue-doc" title="MA-RR-001 Manual de RRHH">MA-RR-001 Manual RRHH</span><span class="overdue-stage">Pendiente gestión doc.</span></div>
+            <span class="overdue-days" style="background:#fef08a;color:#854d0e;">6 días</span>
+          </div>
+          <div class="overdue-item">
+            <div class="overdue-info"><span class="overdue-doc" title="FO-FAR-003 Dispensación">FO-FAR-003 Dispensación</span><span class="overdue-stage">Pendiente revisor</span></div>
+            <span class="overdue-days" style="background:#fef08a;color:#854d0e;">5 días</span>
+          </div>
+          <div class="overdue-item">
+            <div class="overdue-info"><span class="overdue-doc" title="PR-EME-009 Triaje">PR-EME-009 Triaje</span><span class="overdue-stage">Pendiente revisor</span></div>
+            <span class="overdue-days" style="background:#fef08a;color:#854d0e;">5 días</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="card">
+      <div class="card-title">Composición por tipo</div>
+      <div class="card-content">
+        <div class="chart-container">
+          <canvas id="chartTipo"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Composición por sede</div>
+      <div class="card-content">
+        <div class="chart-container">
+          <canvas id="chartSede"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Distribución UPSS (Asistenciales)</div>
+      <div class="card-content">
+        <div class="list-wrapper" id="upss-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Distribución UPS (Soporte)</div>
+      <div class="card-content">
+        <div class="list-wrapper" id="ups-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  // Setup global font for Chart.js
+  Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  Chart.defaults.color = "#6b7280";
+
+  const C1 = '#2A6F82', C2 = '#49A3C3', C3 = '#37836B', C4 = '#49C39A', C5 = '#F0997B', C6 = '#E24B4A';
+
+  // 1. Estado de Flujos (Doughnut)
+  new Chart(document.getElementById('chartEstadoFlujo'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Pendiente revisor', 'Pendiente aprobador', 'Pendiente gestión doc.', 'Obs. por revisor', 'Obs. por aprobador'],
+      datasets: [{ 
+        data: [12, 7, 6, 2, 1], 
+        backgroundColor: [C2, C1, C3, C5, C6], 
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true, 
+      maintainAspectRatio: false, 
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 } } }
+      }
+    }
+  });
+
+  // 2. Documentos incorporados por mes y sede (Line Timeline)
+  new Chart(document.getElementById('chartMesSede'), {
+    type: 'line',
+    data: {
+      labels: ['Ene','Feb','Mar','Abr','May','Jun'],
+      datasets: [
+        { label: 'Lima Centro', data: [3, 5, 4, 6, 5, 8], borderColor: C1, backgroundColor: C1, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5 },
+        { label: 'Los Olivos', data: [2, 3, 2, 4, 4, 5], borderColor: C2, backgroundColor: C2, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5 },
+        { label: 'S.M. de Porres', data: [2, 2, 2, 3, 2, 2], borderColor: C3, backgroundColor: C3, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5 },
+        { label: 'S.J. de Miraflores', data: [1, 1, 1, 1, 2, 2], borderColor: C5, backgroundColor: C5, tension: 0.4, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5 },
+      ]
+    },
+    options: {
+      responsive: true, 
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#f3f4f6' }, beginAtZero: true, ticks: { stepSize: 2 } }
+      },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false }
+    }
+  });
+
+  // 3. Composición por Tipo (Doughnut)
+  new Chart(document.getElementById('chartTipo'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Procedimientos','Instructivos','Formatos','Manuales','Políticas'],
+      datasets: [{ 
+        data: [72,45,58,21,18], 
+        backgroundColor: [C1,C2,C3,C4,C5], 
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true, 
+      maintainAspectRatio: false, 
+      cutout: '65%',
+      plugins: { 
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 } } } 
+      }
+    }
+  });
+
+  // 4. Composición por Sede (Doughnut)
+  new Chart(document.getElementById('chartSede'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Lima Centro','Los Olivos','S.M. de Porres','S.J. de Miraflores'],
+      datasets: [{ 
+        data: [89,67,34,24], 
+        backgroundColor: [C1,C2,C3,C4], 
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true, 
+      maintainAspectRatio: false, 
+      cutout: '65%',
+      plugins: { 
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 } } } 
+      }
+    }
+  });
+
+  // 5. Lists for UPSS / UPS
+  const upssData = [
+    ['Consulta externa', 28],['Emergencia', 22],['Hospitalizacion', 19],['Farmacia', 16],
+    ['Laboratorio', 14],['Centro quirurgico', 12],['Diag. por imagenes', 11],['UCI Adulto', 9],
+    ['Neonatologia', 8],['Centro obstetrico', 7],['UCI Neonatal', 6],['Epidemiologia', 6],
+    ['Medicina fisica', 5],['Nutricion y dietetica', 4],['C. Esterilizacion', 4]
+  ];
+  
+  const upsData = [
+    ['Calidad y Seguridad', 24],['Gestión humano', 18],['Direccion', 15],['Seguridad y salud', 13],
+    ['Operaciones', 11],['Contabilidad', 10],['Tecnologias info', 9],['Talento medico', 8],
+    ['Transversal asist.', 7],['Transversal admin.', 7],['Infraestructura', 6],['Admision y alta', 5]
+  ];
+
+  function renderList(data, containerId, color) {
+    const max = Math.max(...data.map(d => d[1]));
+    const el = document.getElementById(containerId);
+    el.innerHTML = data.map(([name, count]) => {
+      const pct = Math.round((count / max) * 100);
+      return `<div class="ups-item">
+        <span class="ups-name" title="${name}">${name}</span>
+        <div class="ups-bar-bg"><div class="ups-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+        <span class="ups-count">${count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  renderList(upssData, 'upss-list', C1);
+  renderList(upsData, 'ups-list', C3);
+</script>
+
+</body>
+</html>
