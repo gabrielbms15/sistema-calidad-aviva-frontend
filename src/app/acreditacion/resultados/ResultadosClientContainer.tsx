@@ -28,7 +28,7 @@ export default function ResultadosClientContainer({
   responsablesByProceso,
 }: Props) {
   const [selectedProcesoId, setSelectedProcesoId] = useState<string>(
-    procesos[0]?.id ?? ""
+    procesos[procesos.length - 1]?.id ?? ""
   );
 
   return (

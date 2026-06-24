@@ -306,6 +306,30 @@ export default function DefinirRequerimientosView({
     if (!confirm("¿Estás seguro de eliminar este entregable?")) return;
 
     updateEntregableRow(criterioId, idx, { isSaving: true });
+
+    // 1. Primero obtenemos los seguimientos asociados a este entregable
+    const { data: seguimientos } = await supabase
+      .from("entregable_seguimiento")
+      .select("id")
+      .eq("entregable_id", row.id);
+
+    if (seguimientos && seguimientos.length > 0) {
+      const segIds = seguimientos.map((s) => s.id);
+
+      // 2. Eliminamos las evidencias de esos seguimientos
+      await supabase
+        .from("entregable_evidencia")
+        .delete()
+        .in("entregable_seguimiento_id", segIds);
+
+      // 3. Eliminamos los seguimientos
+      await supabase
+        .from("entregable_seguimiento")
+        .delete()
+        .in("id", segIds);
+    }
+
+    // 4. Finalmente eliminamos el entregable
     const { error } = await supabase.from("entregable").delete().eq("id", row.id);
     if (error) {
       alert("Error al eliminar el entregable.");
