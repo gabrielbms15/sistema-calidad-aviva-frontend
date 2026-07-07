@@ -11,6 +11,7 @@ import ResponsablesTable, {
 import EntregablesChart, {
   MacroprocesoEntregable,
 } from "./EntregablesChart";
+import CriteriosChart from "./CriteriosChart";
 import EstatusChart from "./EstatusChart";
 import ComparativoAutoevaluacionChart from "./ComparativoAutoevaluacionChart";
 
@@ -74,6 +75,11 @@ export default function ResultadosClientContainer({
           />
         </div>
         <EntregablesChart
+          procesos={procesos}
+          dataByProceso={entregablesByProceso}
+          selectedProcesoId={selectedProcesoId}
+        />
+        <CriteriosChart
           procesos={procesos}
           dataByProceso={entregablesByProceso}
           selectedProcesoId={selectedProcesoId}

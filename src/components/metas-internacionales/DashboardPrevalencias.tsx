@@ -55,6 +55,8 @@ interface CumplimientoGlobalSet {
 
 interface CumplimientoPorGrupo {
   grupo_profesional: string;
+  total_si?: number;
+  total_no?: number;
   porcentaje_cumplimiento: number;
   total_evaluados?: number;
 }
@@ -229,6 +231,7 @@ export default function DashboardPrevalencias({
   const [dataDistribucion, setDataDistribucion] = useState<DistribucionEvaluaciones[]>([]);
 
   const [mostrarTodasFallas, setMostrarTodasFallas] = useState(false);
+  const [modoGlobal, setModoGlobal] = useState(false);
 
   // Carga global (una sola vez)
   const cargarDatosGlobales = useCallback(async () => {
@@ -252,6 +255,7 @@ export default function DashboardPrevalencias({
   const cargarDatosPorSet = useCallback(async (setId: string) => {
     if (!proceso) return;
     setLoadingBySet(true);
+    setModoGlobal(false);
     setMostrarTodasFallas(false);
 
     const [resUpss, resGrupo, resFallas] = await Promise.all([
@@ -280,6 +284,78 @@ export default function DashboardPrevalencias({
     setDataFallas(resFallas.data ?? []);
     setLoadingBySet(false);
   }, [proceso]);
+
+  // Carga global ponderada por UPSS y Grupo Profesional (opción "Global" del selector)
+  const cargarDatosGlobal = useCallback(async () => {
+    if (!proceso || sets.length === 0) return;
+    setLoadingBySet(true);
+    setModoGlobal(true);
+    setMostrarTodasFallas(false);
+
+    const [resUpssAll, resGrupoAll] = await Promise.all([
+      Promise.all(sets.map((s) => getCumplimientoUpss(s.id, proceso.id))),
+      Promise.all(sets.map((s) => getCumplimientoGrupoProfesional(s.id, proceso.id))),
+    ]);
+
+    // Agregar UPSS: sumar total_si y total_no por UPSS (porcentaje ponderado real)
+    const upssMap: Record<string, { total_si: number; total_no: number; total_evaluados: number }> = {};
+    for (const res of resUpssAll) {
+      for (const raw of (res.data ?? [])) {
+        const item = raw as CumplimientoPorUpss & { total_si: number; total_no: number };
+        let nombre = item.upss;
+        const lower = nombre.toLowerCase();
+        if (lower.includes("unidad de cuidados intensivos adulto")) nombre = "UCI ADULTOS";
+        else if (lower.includes("unidad de cuidados intensivos neonatal")) nombre = "UCI NEONATAL";
+        else if (lower.includes("central de esterilizaci")) nombre = "ESTERILIZACION";
+        if (!upssMap[nombre]) upssMap[nombre] = { total_si: 0, total_no: 0, total_evaluados: 0 };
+        upssMap[nombre].total_si += (item.total_si ?? 0);
+        upssMap[nombre].total_no += (item.total_no ?? 0);
+        upssMap[nombre].total_evaluados += (item.total_evaluados ?? 0);
+      }
+    }
+    const globalUpss: CumplimientoPorUpss[] = Object.entries(upssMap)
+      .map(([upss, vals]) => ({
+        upss,
+        total_si: vals.total_si,
+        total_no: vals.total_no,
+        porcentaje_cumplimiento:
+          vals.total_si + vals.total_no > 0
+            ? (vals.total_si / (vals.total_si + vals.total_no)) * 100
+            : 0,
+        total_evaluados: vals.total_evaluados,
+      }))
+      .sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento);
+
+    // Agregar Grupo Profesional: sumar total_si y total_no por grupo
+    const grupoMap: Record<string, { total_si: number; total_no: number; total_evaluados: number }> = {};
+    for (const res of resGrupoAll) {
+      for (const raw of (res.data ?? [])) {
+        const item = raw as CumplimientoPorGrupo & { total_si: number; total_no: number };
+        const nombre = item.grupo_profesional;
+        if (!grupoMap[nombre]) grupoMap[nombre] = { total_si: 0, total_no: 0, total_evaluados: 0 };
+        grupoMap[nombre].total_si += (item.total_si ?? 0);
+        grupoMap[nombre].total_no += (item.total_no ?? 0);
+        grupoMap[nombre].total_evaluados += (item.total_evaluados ?? 0);
+      }
+    }
+    const globalGrupo: CumplimientoPorGrupo[] = Object.entries(grupoMap)
+      .map(([grupo_profesional, vals]) => ({
+        grupo_profesional,
+        total_si: vals.total_si,
+        total_no: vals.total_no,
+        porcentaje_cumplimiento:
+          vals.total_si + vals.total_no > 0
+            ? (vals.total_si / (vals.total_si + vals.total_no)) * 100
+            : 0,
+        total_evaluados: vals.total_evaluados,
+      }))
+      .sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento);
+
+    setDataUpss(globalUpss);
+    setDataGrupo(globalGrupo);
+    setDataFallas([]); // No aplica en modo global
+    setLoadingBySet(false);
+  }, [proceso, sets]);
 
   // Mount
   useEffect(() => {
@@ -331,12 +407,30 @@ export default function DashboardPrevalencias({
 
       {/* Selector de set */}
       <div className="flex flex-wrap gap-2">
+        {/* Botón Global */}
+        <button
+          onClick={() => {
+            setSetSeleccionado(null);
+            cargarDatosGlobal();
+          }}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+            modoGlobal
+              ? "bg-[#2b3f64] text-white shadow-md shadow-[#2b3f64]/20"
+              : "bg-white text-gray-600 border border-gray-200 hover:border-[#2b3f64]/30 hover:text-[#2b3f64]"
+          }`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Global
+        </button>
         {sets.map((s) => (
           <button
             key={s.id}
             onClick={() => setSetSeleccionado(s)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-              setSeleccionado?.id === s.id
+              !modoGlobal && setSeleccionado?.id === s.id
                 ? "bg-[#2b3f64] text-white shadow-md shadow-[#2b3f64]/20"
                 : "bg-white text-gray-600 border border-gray-200 hover:border-[#2b3f64]/30 hover:text-[#2b3f64]"
             }`}
@@ -351,7 +445,7 @@ export default function DashboardPrevalencias({
         {/* Gráfica 1 — Cumplimiento por UPSS */}
         <ChartCard
           title="Cumplimiento por UPSS"
-          subtitle={setSeleccionado?.nombre}
+          subtitle={modoGlobal ? "Global — porcentaje ponderado de todas las metas" : setSeleccionado?.nombre}
           loading={loadingBySet}
           empty={!loadingBySet && dataUpss.length === 0}
         >
@@ -403,7 +497,7 @@ export default function DashboardPrevalencias({
         {/* Gráfica 3 — Cumplimiento por grupo profesional */}
         <ChartCard
           title="Cumplimiento por Grupo Profesional"
-          subtitle={setSeleccionado?.nombre}
+          subtitle={modoGlobal ? "Global — porcentaje ponderado de todas las metas" : setSeleccionado?.nombre}
           loading={loadingBySet}
           empty={!loadingBySet && dataGrupo.length === 0}
         >
@@ -556,70 +650,90 @@ export default function DashboardPrevalencias({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard
           title="Preguntas con Mayor Tasa de Fallo"
-          subtitle={setSeleccionado ? `${setSeleccionado.nombre} — ordenadas de mayor a menor falla` : undefined}
-          loading={loadingBySet}
-          empty={!loadingBySet && dataFallas.length === 0}
+          subtitle={
+            modoGlobal
+              ? "Selecciona una meta específica para ver este análisis"
+              : setSeleccionado
+              ? `${setSeleccionado.nombre} — ordenadas de mayor a menor falla`
+              : undefined
+          }
+          loading={!modoGlobal && loadingBySet}
+          empty={!modoGlobal && !loadingBySet && dataFallas.length === 0}
         >
-          <div className="flex flex-col gap-3">
-            {fallasVisibles.filter(f => f.porcentaje_no != null).map((falla, i) => (
-              <div key={falla.pregunta_id} className="flex items-start gap-4 group">
-                {/* Rank badge */}
-                <div
-                  className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold mt-0.5"
-                  style={{ backgroundColor: `${BRAND}10`, color: BRAND }}
-                >
-                  {i + 1}
-                </div>
-                {/* Bar + texto */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-700 font-medium leading-snug mb-1.5 line-clamp-2">
-                    {falla.texto}
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${falla.porcentaje_no}%`,
-                          backgroundColor: colorForValue(100 - falla.porcentaje_no),
-                        }}
-                      />
+          {modoGlobal ? (
+            <div className="flex flex-col items-center justify-center min-h-[220px] text-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#2b3f64]/5 flex items-center justify-center">
+                <svg className="w-6 h-6 text-[#2b3f64]/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-gray-400">No disponible en modo Global</p>
+              <p className="text-xs text-gray-300 max-w-[220px] leading-relaxed">
+                Selecciona una meta específica para ver las preguntas con mayor tasa de fallo
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {fallasVisibles.filter(f => f.porcentaje_no != null).map((falla, i) => (
+                <div key={falla.pregunta_id} className="flex items-start gap-4 group">
+                  {/* Rank badge */}
+                  <div
+                    className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold mt-0.5"
+                    style={{ backgroundColor: `${BRAND}10`, color: BRAND }}
+                  >
+                    {i + 1}
+                  </div>
+                  {/* Bar + texto */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 font-medium leading-snug mb-1.5 line-clamp-2">
+                      {falla.texto}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${falla.porcentaje_no}%`,
+                            backgroundColor: colorForValue(100 - falla.porcentaje_no),
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="text-sm font-bold shrink-0 w-14 text-right"
+                        style={{ color: colorForValue(100 - falla.porcentaje_no) }}
+                      >
+                        {falla.porcentaje_no.toFixed(1)}% NO
+                      </span>
                     </div>
-                    <span
-                      className="text-sm font-bold shrink-0 w-14 text-right"
-                      style={{ color: colorForValue(100 - falla.porcentaje_no) }}
-                    >
-                      {falla.porcentaje_no.toFixed(1)}% NO
-                    </span>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {/* Ver todas */}
-            {dataFallas.length > 5 && (
-              <button
-                onClick={() => setMostrarTodasFallas((v) => !v)}
-                className="mt-2 self-start text-xs font-semibold text-[#2b3f64] hover:text-[#1e2d4a] flex items-center gap-1 transition-colors"
-              >
-                {mostrarTodasFallas ? (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                    Ver menos
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                    Ver todas ({dataFallas.length} preguntas)
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+              {/* Ver todas */}
+              {dataFallas.length > 5 && (
+                <button
+                  onClick={() => setMostrarTodasFallas((v) => !v)}
+                  className="mt-2 self-start text-xs font-semibold text-[#2b3f64] hover:text-[#1e2d4a] flex items-center gap-1 transition-colors"
+                >
+                  {mostrarTodasFallas ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                      Ver menos
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      Ver todas ({dataFallas.length} preguntas)
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
         </ChartCard>
 
         {/* Gráfica 5 — Distribución de Evaluaciones */}
