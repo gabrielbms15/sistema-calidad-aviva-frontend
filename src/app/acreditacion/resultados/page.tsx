@@ -17,6 +17,7 @@ import {
 import {
   ResponsableRow,
   EstadoKey,
+  CriterioResumen,
 } from "./ResponsablesTable";
 
 /* ─── Excluded criterios (same set used everywhere) ──────── */
@@ -318,6 +319,7 @@ export default async function ResultadosPage() {
 
       // Collect entregables from non-excluded criterios of non-excluded macros
       const entregables: { estado: EstadoKey }[] = [];
+      const criterios: CriterioResumen[] = [];
       let hasCriterio = false;
 
       for (const link of criterioLinks) {
@@ -333,13 +335,22 @@ export default async function ResultadosPage() {
 
         hasCriterio = true;
 
+        // Build entregables list for this criterio (resolved for this proceso)
+        const crEntregables: { estado: EstadoKey }[] = [];
         for (const ent of cr.entregable ?? []) {
           const seg = (ent.entregable_seguimiento ?? []).find(
             (s: EntregableSeguimientoRaw) => s.proceso_id === proc.id
           );
           const estado: EstadoKey = seg?.estado ?? "sin_estado";
           entregables.push({ estado });
+          crEntregables.push({ estado });
         }
+
+        criterios.push({
+          criterio_id: cr.id,
+          codigo_criterio: cr.codigo_criterio,
+          entregables: crEntregables,
+        });
       }
 
       // Only include responsables that have at least one valid criterio
@@ -352,6 +363,7 @@ export default async function ResultadosPage() {
         cargo: resp.cargo ?? "",
         area_nombre: (resp.area as AreaRaw)?.nombre ?? "",
         entregables,
+        criterios,
       });
     }
 

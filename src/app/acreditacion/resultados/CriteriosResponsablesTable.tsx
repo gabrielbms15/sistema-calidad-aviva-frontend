@@ -1,47 +1,27 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import {
+  EstadoKey,
+  CriterioResumen,
+  EntregableResumen,
+  ResponsableRow,
+} from "./ResponsablesTable";
 
-/* ─── Types ──────────────────────────────────────────────── */
-export type EstadoKey = "cumplido" | "parcial" | "no_cumplido" | "sin_estado";
-
-export interface EntregableResumen {
-  estado: EstadoKey;
-}
-
-/** Un criterio con sus entregables ya resueltos para un proceso dado */
-export interface CriterioResumen {
-  criterio_id: string;
-  codigo_criterio: string;
-  entregables: EntregableResumen[];
-}
-
-export interface ResponsableRow {
-  responsable_id: string;
-  nombre: string;
-  apellido: string;
-  cargo: string;
-  area_nombre: string;
-  entregables: EntregableResumen[];
-  /** Lista de criterios (con sus entregables) asignados a este responsable */
-  criterios: CriterioResumen[];
-}
-
-export interface ResponsablesTableProps {
+/* ─── Props ──────────────────────────────────────────────── */
+export interface CriteriosResponsablesTableProps {
   procesos: { id: string; label: string }[];
   dataByProceso: Record<string, ResponsableRow[]>;
   selectedProcesoId: string;
 }
 
-/* ─── Colors ─────────────────────────────────────────────── */
+/* ─── Colors (same palette as ResponsablesTable) ─────────── */
 const STATUS_COLORS: Record<EstadoKey, { bar: string; text: string; label: string }> = {
   cumplido:    { bar: "#2D778B", text: "text-emerald-700", label: "Cumplido"    },
   parcial:     { bar: "#FFF0C5", text: "text-amber-600",   label: "Parcial"     },
   no_cumplido: { bar: "#fecaca", text: "text-red-600",     label: "No cumplido" },
   sin_estado:  { bar: "#d1d5db", text: "text-gray-400",   label: "Sin estado"  },
 };
-
-const aviva_05 = "#3DA3B3";
 
 const BAR_KEYS: EstadoKey[] = ["cumplido", "parcial", "no_cumplido", "sin_estado"];
 
@@ -50,7 +30,42 @@ function toTitleCase(str: string) {
   return str.trim().toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/* ─── Mini stacked bar (total column only) ───────────────── */
+/* ─── Derivation logic (same as CriteriosChart) ─────────── */
+/**
+ * Derives the status of a criterio from its entregables:
+ *  - Al menos uno "cumplido"                                  → cumplido
+ *  - Sin cumplido, al menos uno "parcial"                     → parcial
+ *  - Sin cumplido ni parcial, TODOS con estado asignado son
+ *    "no_cumplido" (sin ningún sin_estado mezclado)           → no_cumplido
+ *  - Cualquier otro caso                                      → sin_estado
+ */
+function deriveCriterioStatus(entregables: EntregableResumen[]): EstadoKey {
+  if (entregables.length === 0) return "sin_estado";
+
+  let hasCumplido   = false;
+  let hasParcial    = false;
+  let hasNoCumplido = false;
+  let allSinEstado  = true;
+
+  for (const e of entregables) {
+    if (e.estado === "cumplido")         { hasCumplido   = true; allSinEstado = false; }
+    else if (e.estado === "parcial")     { hasParcial    = true; allSinEstado = false; }
+    else if (e.estado === "no_cumplido") { hasNoCumplido = true; allSinEstado = false; }
+    // sin_estado: no contribution
+  }
+
+  if (allSinEstado) return "sin_estado";
+  if (hasCumplido)  return "cumplido";
+  if (hasParcial)   return "parcial";
+
+  // no_cumplido solo si todos los entregables tienen estado asignado (sin sin_estado mezclado)
+  const todosAsignados = entregables.every((e) => e.estado !== "sin_estado");
+  if (hasNoCumplido && todosAsignados) return "no_cumplido";
+
+  return "sin_estado";
+}
+
+/* ─── Mini stacked bar ───────────────────────────────────── */
 function StackedMiniBar({ counts, total }: { counts: Record<EstadoKey, number>; total: number }) {
   if (total === 0) return null;
   return (
@@ -76,11 +91,17 @@ function StackedMiniBar({ counts, total }: { counts: Record<EstadoKey, number>; 
 type SortKey = "nombre" | "total" | EstadoKey;
 type SortDir = "asc" | "desc";
 
+/** Counts derived criterion statuses for a row */
+function getCriteriosCounts(criterios: CriterioResumen[]): Record<EstadoKey, number> {
+  const acc: Record<EstadoKey, number> = { cumplido: 0, parcial: 0, no_cumplido: 0, sin_estado: 0 };
+  for (const cr of criterios) {
+    acc[deriveCriterioStatus(cr.entregables)]++;
+  }
+  return acc;
+}
+
 function sortRows(rows: ResponsableRow[], key: SortKey, dir: SortDir): ResponsableRow[] {
   return [...rows].sort((a, b) => {
-    const count = (r: ResponsableRow, k: EstadoKey) =>
-      r.entregables.filter((e) => e.estado === k).length;
-
     let va: number | string;
     let vb: number | string;
 
@@ -88,11 +109,11 @@ function sortRows(rows: ResponsableRow[], key: SortKey, dir: SortDir): Responsab
       va = `${a.apellido} ${a.nombre}`.toLowerCase();
       vb = `${b.apellido} ${b.nombre}`.toLowerCase();
     } else if (key === "total") {
-      va = a.entregables.length;
-      vb = b.entregables.length;
+      va = a.criterios.length;
+      vb = b.criterios.length;
     } else {
-      va = count(a, key as EstadoKey);
-      vb = count(b, key as EstadoKey);
+      va = getCriteriosCounts(a.criterios)[key as EstadoKey];
+      vb = getCriteriosCounts(b.criterios)[key as EstadoKey];
     }
 
     if (va < vb) return dir === "asc" ? -1 : 1;
@@ -101,30 +122,32 @@ function sortRows(rows: ResponsableRow[], key: SortKey, dir: SortDir): Responsab
   });
 }
 
-
-
 /* ─── Main Component ─────────────────────────────────────── */
-export default function ResponsablesTable({ procesos, dataByProceso, selectedProcesoId }: ResponsablesTableProps) {
+export default function CriteriosResponsablesTable({
+  procesos,
+  dataByProceso,
+  selectedProcesoId,
+}: CriteriosResponsablesTableProps) {
   const [selectedArea, setSelectedArea] = useState<string>("");
+  const [sortKey, setSortKey]           = useState<SortKey>("nombre");
+  const [sortDir, setSortDir]           = useState<SortDir>("asc");
 
   useEffect(() => {
     setSelectedArea("");
   }, [selectedProcesoId]);
-  const [sortKey, setSortKey] = useState<SortKey>("nombre");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  const allRows = useMemo(() => dataByProceso[selectedProcesoId] ?? [], [selectedProcesoId, dataByProceso]);
+  const allRows = useMemo(
+    () => dataByProceso[selectedProcesoId] ?? [],
+    [selectedProcesoId, dataByProceso]
+  );
 
-  /* Areas that have ≥1 responsable with criterios */
   const areas = useMemo(() => {
     const s = new Set(allRows.map((r) => r.area_nombre));
     return Array.from(s).sort();
   }, [allRows]);
 
-  /* When proceso changes, reset area if it no longer exists */
   const effectiveArea = areas.includes(selectedArea) ? selectedArea : "";
 
-  /* Rows for the selected area */
   const filteredRows = useMemo(() => {
     const base = effectiveArea
       ? allRows.filter((r) => r.area_nombre === effectiveArea)
@@ -132,23 +155,21 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
     return sortRows(base, sortKey, sortDir);
   }, [allRows, effectiveArea, sortKey, sortDir]);
 
-  /* Grand totals across ALL rows in the process (for summary pills) */
+  /* Grand totals for the footer */
   const totals = useMemo(() => {
     const acc: Record<EstadoKey, number> = { cumplido: 0, parcial: 0, no_cumplido: 0, sin_estado: 0 };
     for (const row of filteredRows) {
-      for (const e of row.entregables) acc[e.estado] += 1;
+      const counts = getCriteriosCounts(row.criterios);
+      for (const k of BAR_KEYS) acc[k] += counts[k];
     }
     return acc;
   }, [filteredRows]);
-  const grandTotal = filteredRows.reduce((s, r) => s + r.entregables.length, 0);
+
+  const grandTotal = filteredRows.reduce((s, r) => s + r.criterios.length, 0);
 
   function handleSort(key: SortKey) {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("asc"); }
-  }
-
-  function handleAreaClick(area: string) {
-    setSelectedArea((prev) => (prev === area ? "" : area));
   }
 
   return (
@@ -158,7 +179,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
         {/* Card header */}
         <div className="px-8 pt-5 pb-3 border-b border-black/[0.06] shrink-0 flex items-center justify-between gap-4 flex-wrap">
           <h2 className="text-[#000000] font-avenir-demi text-base font-bold tracking-tight">
-            Entregables por responsable y/o área
+            Criterios por responsable y/o área
           </h2>
 
           {/* Área selector */}
@@ -166,7 +187,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
             <span className="text-black/60 text-[9px] font-avenir font-normal">Área:</span>
             <div className="relative">
               <select
-                id="responsables-area-selector"
+                id="criterios-responsables-area-selector"
                 value={selectedArea}
                 onChange={(e) => setSelectedArea(e.target.value)}
                 className="appearance-none bg-black/[0.04] hover:bg-black/[0.08] text-black text-[9px] font-avenir rounded-md pl-2 pr-6 py-[5px] focus:outline-none focus:ring-1 focus:ring-black/10 cursor-pointer font-medium border border-black/[0.08] min-w-[120px] transition-all shadow-sm"
@@ -183,7 +204,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
           </div>
         </div>
 
-        {/* ── Table ── */}
+        {/* Table */}
         <div className="px-6 pb-6 pt-2">
           {filteredRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-gray-300">
@@ -198,23 +219,43 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
                 <thead>
                   <tr className="bg-[#2D778B] font-avenir text-white select-none leading-tight">
                     <th className="px-3 py-1.5 text-left w-[40%] font-avenir font-bold text-[11px] border-r border-white/20">Responsable / cargo</th>
-                    <th className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20">Cumplido</th>
-                    <th className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20">Parcial</th>
-                    <th className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20">No cumplido</th>
-                    <th className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20">Sin estado</th>
-                    <th className="px-2 py-1.5 text-center w-[20%] font-avenir font-bold text-[11px]">Total</th>
+                    <th
+                      className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20 cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => handleSort("cumplido")}
+                    >
+                      Cumplido{sortKey === "cumplido" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
+                    </th>
+                    <th
+                      className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20 cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => handleSort("parcial")}
+                    >
+                      Parcial{sortKey === "parcial" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
+                    </th>
+                    <th
+                      className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20 cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => handleSort("no_cumplido")}
+                    >
+                      No cumplido{sortKey === "no_cumplido" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
+                    </th>
+                    <th
+                      className="px-0.5 py-1.5 text-center w-[10%] font-avenir font-bold text-[11px] border-r border-white/20 cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => handleSort("sin_estado")}
+                    >
+                      Sin estado{sortKey === "sin_estado" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
+                    </th>
+                    <th
+                      className="px-2 py-1.5 text-center w-[20%] font-avenir font-bold text-[11px] cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => handleSort("total")}
+                    >
+                      Total{sortKey === "total" ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRows.map((row, i) => {
-                    const counts: Record<EstadoKey, number> = {
-                      cumplido:    row.entregables.filter((e) => e.estado === "cumplido").length,
-                      parcial:     row.entregables.filter((e) => e.estado === "parcial").length,
-                      no_cumplido: row.entregables.filter((e) => e.estado === "no_cumplido").length,
-                      sin_estado:  row.entregables.filter((e) => e.estado === "sin_estado").length,
-                    };
-                    const total = row.entregables.length;
-                    const rowBg = i % 2 === 0 ? "bg-white" : "bg-[#2D778B]/[0.06]";
+                    const counts = getCriteriosCounts(row.criterios);
+                    const total  = row.criterios.length;
+                    const rowBg  = i % 2 === 0 ? "bg-white" : "bg-[#2D778B]/[0.06]";
 
                     return (
                       <tr
@@ -232,9 +273,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
                         {/* Cumplido */}
                         <td className="px-1 py-1.5 text-center border-r border-gray-100">
                           {counts.cumplido > 0 ? (
-                            <span className="text-[12px] font-bold tabular-nums text-emerald-600">
-                              {counts.cumplido}
-                            </span>
+                            <span className="text-[12px] font-bold tabular-nums text-emerald-600">{counts.cumplido}</span>
                           ) : (
                             <span className="text-gray-200 text-[12px] font-medium">—</span>
                           )}
@@ -243,9 +282,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
                         {/* Parcial */}
                         <td className="px-1 py-1.5 text-center border-r border-gray-100">
                           {counts.parcial > 0 ? (
-                            <span className="text-[12px] font-bold tabular-nums text-amber-500">
-                              {counts.parcial}
-                            </span>
+                            <span className="text-[12px] font-bold tabular-nums text-amber-500">{counts.parcial}</span>
                           ) : (
                             <span className="text-gray-200 text-[12px] font-medium">—</span>
                           )}
@@ -254,9 +291,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
                         {/* No cumplido */}
                         <td className="px-1 py-1.5 text-center border-r border-gray-100">
                           {counts.no_cumplido > 0 ? (
-                            <span className="text-[12px] font-bold tabular-nums text-red-500">
-                              {counts.no_cumplido}
-                            </span>
+                            <span className="text-[12px] font-bold tabular-nums text-red-500">{counts.no_cumplido}</span>
                           ) : (
                             <span className="text-gray-200 text-[12px] font-medium">—</span>
                           )}
@@ -265,9 +300,7 @@ export default function ResponsablesTable({ procesos, dataByProceso, selectedPro
                         {/* Sin estado */}
                         <td className="px-1 py-1.5 text-center border-r border-gray-100">
                           {counts.sin_estado > 0 ? (
-                            <span className="text-[12px] font-bold tabular-nums text-gray-400">
-                              {counts.sin_estado}
-                            </span>
+                            <span className="text-[12px] font-bold tabular-nums text-gray-400">{counts.sin_estado}</span>
                           ) : (
                             <span className="text-gray-200 text-[12px] font-medium">—</span>
                           )}

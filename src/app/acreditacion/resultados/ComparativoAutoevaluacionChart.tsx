@@ -138,7 +138,7 @@ export default function ComparativoAutoevaluacionChart({ procesos, dataByProceso
   }, [currentMacros, prevMacros, prevProcesoId]);
 
   return (
-    <div className="flex flex-col font-sans w-full lg:w-[50%] mt-6">
+    <div className="flex flex-col font-sans w-full lg:flex-1">
       <div className="bg-white/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 flex flex-col ring-1 ring-black/[0.02]">
 
         {/* Card header */}

@@ -12,6 +12,7 @@ import EntregablesChart, {
   MacroprocesoEntregable,
 } from "./EntregablesChart";
 import CriteriosChart from "./CriteriosChart";
+import CriteriosResponsablesTable from "./CriteriosResponsablesTable";
 import EstatusChart from "./EstatusChart";
 import ComparativoAutoevaluacionChart from "./ComparativoAutoevaluacionChart";
 
@@ -62,39 +63,58 @@ export default function ResultadosClientContainer({
 
       {/* Charts & Tables */}
       <div className="flex flex-col gap-6">
+
+        {/* Fila 1: Autoevaluación + Comparativa Anual */}
         <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
           <ResultadosChart
             procesos={procesos}
             dataByProceso={dataByProceso}
             selectedProcesoId={selectedProcesoId}
           />
-          <ResponsablesTable
+          <ComparativoAutoevaluacionChart
             procesos={procesos}
-            dataByProceso={responsablesByProceso}
+            dataByProceso={dataByProceso}
             selectedProcesoId={selectedProcesoId}
           />
         </div>
+
+        {/* Fila 2: Entregables por Macroproceso */}
         <EntregablesChart
           procesos={procesos}
           dataByProceso={entregablesByProceso}
           selectedProcesoId={selectedProcesoId}
         />
+
+        {/* Fila 3: Criterios por Macroproceso */}
         <CriteriosChart
           procesos={procesos}
           dataByProceso={entregablesByProceso}
           selectedProcesoId={selectedProcesoId}
         />
+
+        {/* Fila 4: Tablas 50/50 — Entregables por resp. | Criterios por resp. */}
+        <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
+          <ResponsablesTable
+            procesos={procesos}
+            dataByProceso={responsablesByProceso}
+            selectedProcesoId={selectedProcesoId}
+          />
+          <CriteriosResponsablesTable
+            procesos={procesos}
+            dataByProceso={responsablesByProceso}
+            selectedProcesoId={selectedProcesoId}
+          />
+        </div>
+
+        {/* Fila 5: Estatus — ancho completo */}
         <EstatusChart
           procesos={procesos}
           dataByProceso={entregablesByProceso}
           selectedProcesoId={selectedProcesoId}
         />
-        <ComparativoAutoevaluacionChart
-          procesos={procesos}
-          dataByProceso={dataByProceso}
-          selectedProcesoId={selectedProcesoId}
-        />
+
       </div>
     </div>
   );
 }
+
