@@ -7,49 +7,47 @@ import { usePathname } from "next/navigation";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import "overlayscrollbars/overlayscrollbars.css";
 
-const SGD_ITEMS = [
-  { name: "Emitir Documento", href: "#", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /> },
-  { name: "Revisar Documento", href: "#", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
-  { name: "Aprobar Documento", href: "#", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-  { name: "Firmar Documento", href: "#", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /> }
+const ACREDITACION_ITEMS = [
+  { name: "Guia Técnica del Evaluador", href: "/acreditacion/guia-tecnica", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /> },
+  { name: "Asignación de responsables", href: "/acreditacion/definir-requerimientos", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /> },
+  { name: "Dashboard de avance", href: "/acreditacion/resultados", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
+  { name: "Procesos activos", href: "/acreditacion", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /> }
 ];
 
 const QPS_ITEMS = [
   { name: "Categorización", href: "#", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /> },
-  { name: "Acreditación Nacional", href: "/acreditacion", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /> },
   { name: "Auditoría de Procesos", href: "#", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /> },
   { name: "Metas Internacionales", href: "/metas-internacionales", icon: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></> }
 ];
 
 export default function Sidebar() {
-  const [isSgdOpen, setIsSgdOpen] = useState(true);
   const [isQpsOpen, setIsQpsOpen] = useState(true);
+  const [isAcreditacionOpen, setIsAcreditacionOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const pathname = usePathname();
 
-  const toggleSgd = () => setIsSgdOpen(!isSgdOpen);
   const toggleQps = () => setIsQpsOpen(!isQpsOpen);
+  const toggleAcreditacion = () => setIsAcreditacionOpen(!isAcreditacionOpen);
 
   const isActive = (path: string) =>
     path === "/" ? pathname === "/" : pathname.startsWith(path);
 
-  const filteredSgd = SGD_ITEMS.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredQps = QPS_ITEMS.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredAcreditacion = ACREDITACION_ITEMS.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const showSgd = searchQuery ? filteredSgd.length > 0 : isSgdOpen;
   const showQps = searchQuery ? filteredQps.length > 0 : isQpsOpen;
+  const showAcreditacion = searchQuery ? filteredAcreditacion.length > 0 : isAcreditacionOpen;
 
   return (
     <OverlayScrollbarsComponent
       element="aside"
       options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }}
       defer
-      className={`m-4 transition-all duration-300 ease-in-out bg-[#2b3f64] text-white flex flex-col p-6 shadow-2xl rounded-3xl relative ${
-        isCollapsed ? "w-[100px] min-w-[100px] items-center px-4" : "w-[23.5%] min-w-[250px] max-w-[700px]"
-      }`}
+      className={`m-3 transition-all duration-300 ease-in-out bg-blue-manhattan-1 text-white flex flex-col px-3 py-3 shadow-2xl rounded-3xl relative ${isCollapsed ? "w-[70px] min-w-[70px] items-center px-2" : "w-[21%] min-w-[250px] max-w-[700px]"
+        }`}
     >
-      <button 
+      <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute top-6 right-4 p-1 text-white/40 hover:text-white/80 transition-colors z-10"
         title={isCollapsed ? "Expandir" : "Retraer"}
@@ -72,7 +70,7 @@ export default function Sidebar() {
               alt="Logo Sistema Calidad"
               width={200}
               height={60}
-              className="w-[70%] max-w-[240px] h-auto object-contain cursor-pointer mx-auto relative -left-[16px]"
+              className="w-[50%] max-w-[160px] h-auto object-contain cursor-pointer mx-auto relative -left-[16px]"
               priority
             />
           )}
@@ -100,37 +98,36 @@ export default function Sidebar() {
         </div>
       )}
 
-      <nav className="flex-1 space-y-6">
-        {/* Dashboard link */}
+      <nav className="flex-1 space-y-1">
+        {/* Inicio link */}
         <Link
           href="/"
-          className={`flex items-center gap-3 py-3 rounded-2xl transition-all duration-300 font-semibold ${isCollapsed ? 'justify-center px-0' : 'px-4'} ${
-            isActive("/")
-              ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white"
-              : "hover:scale-105 hover:bg-white/5 text-white/90"
-          }`}
-          title={isCollapsed ? "Dashboard" : undefined}
+          className={`flex items-center gap-3 py-1.5 rounded-2xl transition-all duration-300 font-semibold ${isCollapsed ? 'justify-center px-0' : 'px-2 text-[10px]'} ${isActive("/")
+            ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white"
+            : "hover:scale-105 hover:bg-white/5 text-white/90"
+            }`}
+          title={isCollapsed ? "Inicio" : undefined}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
-          {!isCollapsed && "Dashboard"}
+          {!isCollapsed && "Inicio"}
         </Link>
 
-        {/* Sección SGD */}
-        {(!searchQuery || filteredSgd.length > 0) && (
+        {/* Sección Acreditación */}
+        {(!searchQuery || filteredAcreditacion.length > 0) && (
           <div className="space-y-1">
             {isCollapsed ? (
               <hr className="border-white/20 my-4 w-full" />
             ) : (
               <div
-                onClick={toggleSgd}
-                className="flex items-center justify-between px-4 py-2 cursor-pointer group rounded-lg hover:bg-white/5 transition-colors"
+                onClick={toggleAcreditacion}
+                className="flex items-center justify-between px-2 py-2 cursor-pointer group rounded-lg hover:bg-white/5 transition-colors"
               >
-                <span className="text-xs font-bold uppercase tracking-wider text-white/60">Sistema de Gestión Documental (SGD)</span>
+                <span className="text-[8px] font-bold uppercase tracking-wider text-white/60">Acreditación Nacional</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className={`h-4 w-4 text-white/80 opacity-0 group-hover:opacity-100 transition-all duration-200 ${showSgd ? 'rotate-180' : ''}`}
+                  className={`h-4 w-4 text-white/80 opacity-0 group-hover:opacity-100 transition-all duration-200 ${showAcreditacion ? 'rotate-180' : ''}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -140,17 +137,16 @@ export default function Sidebar() {
               </div>
             )}
 
-            {(showSgd || isCollapsed) && (
-              <div className={`space-y-1 ${isCollapsed ? 'ml-0' : 'ml-2'}`}>
-                {filteredSgd.map((item) => (
+            {(showAcreditacion || isCollapsed) && (
+              <div className="space-y-1">
+                {filteredAcreditacion.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center gap-3 py-2.5 rounded-2xl transition-all duration-300 font-medium ${isCollapsed ? 'justify-center px-0' : 'px-4 text-sm'} ${
-                      isActive(item.href)
-                        ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-105"
-                        : "hover:scale-105 hover:bg-white/5 text-white/90"
-                    }`}
+                    className={`flex items-center gap-3 py-1.5 rounded-2xl transition-all duration-300 font-medium ${isCollapsed ? 'justify-center px-0' : 'px-2 text-[10px]'} ${isActive(item.href)
+                      ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-105"
+                      : "hover:scale-105 hover:bg-white/5 text-white/90"
+                      }`}
                     title={isCollapsed ? item.name : undefined}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -172,9 +168,9 @@ export default function Sidebar() {
             ) : (
               <div
                 onClick={toggleQps}
-                className="flex items-center justify-between px-4 py-2 cursor-pointer group rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center justify-between px-2 py-2 cursor-pointer group rounded-lg hover:bg-white/5 transition-colors"
               >
-                <span className="text-xs font-bold uppercase tracking-wider text-white/60">Calidad y Seguridad del Paciente (QPS)</span>
+                <span className="text-[8px] font-bold uppercase tracking-wider text-white/60">Calidad y Seguridad del Paciente (QPS)</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className={`h-4 w-4 text-white/80 opacity-0 group-hover:opacity-100 transition-all duration-200 ${showQps ? 'rotate-180' : ''}`}
@@ -188,16 +184,15 @@ export default function Sidebar() {
             )}
 
             {(showQps || isCollapsed) && (
-              <div className={`space-y-1 ${isCollapsed ? 'ml-0' : 'ml-2'}`}>
+              <div className="space-y-1">
                 {filteredQps.map((item) => (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center gap-3 py-2.5 rounded-2xl transition-all duration-300 font-medium ${isCollapsed ? 'justify-center px-0' : 'px-4 text-sm'} ${
-                      isActive(item.href)
-                        ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-105"
-                        : "hover:scale-105 hover:bg-white/5 text-white/90"
-                    }`}
+                    className={`flex items-center gap-3 py-1.5 rounded-2xl transition-all duration-300 font-medium ${isCollapsed ? 'justify-center px-0' : 'px-2 text-[10px]'} ${isActive(item.href)
+                      ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-105"
+                      : "hover:scale-105 hover:bg-white/5 text-white/90"
+                      }`}
                     title={isCollapsed ? item.name : undefined}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

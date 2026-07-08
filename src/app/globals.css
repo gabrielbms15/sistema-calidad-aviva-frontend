@@ -21,6 +21,8 @@
   --font-mono: var(--font-geist-mono);
   --font-avenir: 'Avenir Next LT Pro Regular', sans-serif;
   --font-avenir-demi: 'Avenir Next LT Pro Demi', sans-serif;
+  --color-blue-manhattan-1: #02163A;
+  --color-aviva-turquoise-1: #33869B;
 }
 
 @layer base {
@@ -36,21 +38,25 @@
   width: 4px;
   height: 4px;
 }
+
 .mac-scrollbar::-webkit-scrollbar-button {
   display: none;
 }
+
 .mac-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .mac-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(156, 163, 175, 0.35);
   border-radius: 999px;
 }
+
 .mac-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.6);
 }
+
 .mac-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.35) transparent;
 }
-

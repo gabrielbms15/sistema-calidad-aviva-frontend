@@ -31,7 +31,7 @@ export default function RootLayout({
     >
       <body className="h-screen overflow-hidden flex bg-transparent">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 md:p-10">
+        <main className="flex-1 overflow-y-auto py-3 pr-3 pl-0">
           {children}
         </main>
       </body>
