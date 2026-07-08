@@ -86,7 +86,7 @@ function extractCriterio(c: any): CriterioData {
 }
 
 /* ─── Component ──────────────────────────────────────────── */
-export default function DefinirRequerimientosView({
+export default function AsignarResponsablesView({
   macroprocesos,
   macroprocesoInicialId,
   codigosIniciales,
