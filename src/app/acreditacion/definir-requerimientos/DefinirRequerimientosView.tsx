@@ -23,12 +23,6 @@ interface EntregableRow {
   isSaving: boolean;
 }
 
-interface ResponsableState {
-  criterioResponsableId?: string;
-  responsable_id: string;
-  area_id: string;
-}
-
 interface Props {
   macroprocesos: Macroproceso[];
   macroprocesoInicialId: string;
@@ -74,13 +68,6 @@ function buildEntregables(c: any): EntregableRow[] {
   return rows;
 }
 
-function buildResponsable(c: any, responsables: Responsable[]): ResponsableState {
-  const cr = c.criterio_responsable?.[0];
-  const responsable_id = cr?.responsable_id ?? "";
-  const area_id = responsables.find((r) => r.id === responsable_id)?.area_id ?? "";
-  return { criterioResponsableId: cr?.id, responsable_id, area_id };
-}
-
 function extractCriterio(c: any): CriterioData {
   return { id: c.id, codigo_criterio: c.codigo_criterio, descripcion: c.descripcion, codigo_id: c.codigo_id, fuente_0: c.fuente_0, fuente_1: c.fuente_1, fuente_2: c.fuente_2 };
 }
@@ -101,18 +88,13 @@ export default function DefinirRequerimientosView({
   const [isPending, startTransition] = useTransition();
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [openPopoverCriterioId, setOpenPopoverCriterioId] = useState<string | null>(null);
-  const [openResponsablePopoverId, setOpenResponsablePopoverId] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const responsablePopoverRef = useRef<HTMLDivElement>(null);
 
   // Cierra el popover al hacer clic fuera
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setOpenPopoverCriterioId(null);
-      }
-      if (responsablePopoverRef.current && !responsablePopoverRef.current.contains(e.target as Node)) {
-        setOpenResponsablePopoverId(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -122,12 +104,6 @@ export default function DefinirRequerimientosView({
   const [entregablesMap, setEntregablesMap] = useState<Record<string, EntregableRow[]>>(() => {
     const m: Record<string, EntregableRow[]> = {};
     criteriosIniciales.forEach((c) => { m[c.id] = buildEntregables(c); });
-    return m;
-  });
-
-  const [responsableMap, setResponsableMap] = useState<Record<string, ResponsableState>>(() => {
-    const m: Record<string, ResponsableState> = {};
-    criteriosIniciales.forEach((c) => { m[c.id] = buildResponsable(c, responsables); });
     return m;
   });
 
@@ -150,17 +126,15 @@ export default function DefinirRequerimientosView({
       if (ids.length > 0) {
         const { data: raw } = await supabase
           .from("criterio")
-          .select("id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,entregable(id,criterio_id,descripcion,tipo_entregable,nota,orden),criterio_responsable(id,criterio_id,responsable_id)")
+          .select("id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,entregable(id,criterio_id,descripcion,tipo_entregable,nota,orden)")
           .in("codigo_id", ids);
         const result = raw ?? [];
         setCriterios(result.map(extractCriterio));
         const newE: Record<string, EntregableRow[]> = {};
-        const newR: Record<string, ResponsableState> = {};
-        result.forEach((c: any) => { newE[c.id] = buildEntregables(c); newR[c.id] = buildResponsable(c, responsables); });
+        result.forEach((c: any) => { newE[c.id] = buildEntregables(c); });
         setEntregablesMap(newE);
-        setResponsableMap(newR);
       } else {
-        setCriterios([]); setEntregablesMap({}); setResponsableMap({});
+        setCriterios([]); setEntregablesMap({});
       }
     });
   };
@@ -181,13 +155,8 @@ export default function DefinirRequerimientosView({
     });
   };
 
-  const updateResponsable = (criterioId: string, patch: Partial<ResponsableState>) => {
-    setResponsableMap((prev) => ({ ...prev, [criterioId]: { ...prev[criterioId], ...patch } }));
-  };
-
   const saveEntregable = async (criterioId: string, idx: number, silent = false) => {
     const row = entregablesMap[criterioId]?.[idx];
-    const resp = responsableMap[criterioId];
     if (!row?.descripcion.trim() || !row.tipo_entregable) {
       if (!silent) alert("Completa la descripción y el tipo de entregable.");
       return;
@@ -222,24 +191,6 @@ export default function DefinirRequerimientosView({
         updateEntregableRow(criterioId, idx, { isSaving: false }); return;
       }
       savedId = saved.id;
-    }
-
-    // Upsert criterio_responsable
-    if (resp?.responsable_id) {
-      if (resp.criterioResponsableId) {
-        // UPDATE existing responsable
-        await supabase
-          .from("criterio_responsable")
-          .update({ responsable_id: resp.responsable_id })
-          .eq("id", resp.criterioResponsableId);
-      } else {
-        // INSERT new responsable
-        const { data: cr } = await supabase
-          .from("criterio_responsable")
-          .insert({ criterio_id: criterioId, responsable_id: resp.responsable_id })
-          .select("id").single();
-        if (cr) updateResponsable(criterioId, { criterioResponsableId: cr.id });
-      }
     }
 
     updateEntregableRow(criterioId, idx, { id: savedId, isSaving: false });
@@ -512,10 +463,8 @@ export default function DefinirRequerimientosView({
                   {/* Table Header */}
                   <div className="flex border-b border-gray-200 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
                     <div className="w-[8%] shrink-0 px-2 py-2 text-center">Criterio</div>
-                    <div className="w-[20%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Responsable</div>
-                    <div className="w-[57%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Entregable</div>
-                    <div className="w-[8%] shrink-0 px-2 py-2 border-l border-gray-200 text-center">Tipo</div>
-                    <div className="w-[7%] shrink-0 px-2 py-2 border-l border-gray-200 text-center">Acción</div>
+                    <div className="w-[46%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Descripción</div>
+                    <div className="w-[46%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Entregable</div>
                   </div>
 
                   {/* Rows */}
@@ -526,13 +475,11 @@ export default function DefinirRequerimientosView({
                   ) : (
                     criteriosFiltrados.map((criterio, ci) => {
                       const entregables = entregablesMap[criterio.id] ?? [];
-                      const resp = responsableMap[criterio.id] ?? { area_id: "", responsable_id: "" };
-                      const cargosDelArea = responsables.filter((r) => r.area_id === resp.area_id);
 
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
+                          className={`flex items-stretch min-h-[68px] ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
                           <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
@@ -604,175 +551,76 @@ export default function DefinirRequerimientosView({
                             </div>
                           </div>
 
-                          {/* Col 2 — Responsable (badge + popover) */}
-                          <div className="w-[20%] shrink-0 border-r border-gray-100 px-3 py-4 flex items-start justify-center relative">
-                            <div ref={openResponsablePopoverId === criterio.id ? responsablePopoverRef : undefined} className="w-full">
-                              {/* Badge / trigger */}
-                              <button
-                                onClick={() => setOpenResponsablePopoverId(
-                                  openResponsablePopoverId === criterio.id ? null : criterio.id
-                                )}
-                                className={`w-full group flex flex-col items-start gap-0.5 px-2 py-1.5 rounded-lg border transition-all duration-150 text-left ${
-                                  resp.responsable_id
-                                    ? "bg-[#DEEBF7]/70 border-[#DEEBF7] hover:bg-[#DEEBF7] hover:border-blue-300"
-                                    : "bg-gray-50 border-dashed border-gray-300 hover:border-[#1E50EF]/40 hover:bg-blue-50/30"
-                                }`}
-                              >
-                                {resp.responsable_id ? (() => {
-                                  const cargo = responsables.find(r => r.id === resp.responsable_id);
-                                  const area = areas.find(a => a.id === resp.area_id);
-                                  return (
-                                    <>
-                                      <span className="text-[7px] text-[#1E50EF]/70 font-sans font-extrabold uppercase tracking-wider truncate w-full">{area?.nombre ?? "—"}</span>
-                                      <span className="text-[9px] font-sans font-extrabold text-[#02163a] leading-snug line-clamp-2">{cargo?.cargo ?? "—"}</span>
-                                      <span className="text-[7px] text-black/30 mt-0.5 group-hover:text-[#1E50EF]/60 transition-colors">Editar ✎</span>
-                                    </>
-                                  );
-                                })() : (
-                                  <span className="flex items-center gap-1 text-[9px] text-black/40 font-medium group-hover:text-[#1E50EF] transition-colors w-full">
-                                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                    Asignar
-                                  </span>
-                                )}
-                              </button>
-
-                              {/* Popover de selección */}
-                              {openResponsablePopoverId === criterio.id && (
-                                <div
-                                  ref={responsablePopoverRef}
-                                  className={`absolute left-full ml-2 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 ${
-                                    ci >= criteriosFiltrados.length - 2 && criteriosFiltrados.length > 3
-                                      ? "bottom-0"
-                                      : "top-0"
-                                  }`}
-                                >
-                                  {/* Header del popover */}
-                                  <div className="flex items-center justify-between mb-3">
-                                    <p className="text-[9px] font-sans font-extrabold uppercase tracking-wider text-black">Asignar responsable</p>
-                                    <button
-                                      onClick={() => setOpenResponsablePopoverId(null)}
-                                      className="text-black/30 hover:text-black/60 transition-colors"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                  </div>
-
-                                  {/* Selector de Área */}
-                                  <div className="mb-2">
-                                    <label className="block text-[8px] font-sans font-extrabold text-black/50 uppercase tracking-wider mb-1">Área</label>
-                                    <select
-                                      value={resp.area_id}
-                                      onChange={(e) => updateResponsable(criterio.id, { area_id: e.target.value, responsable_id: "" })}
-                                      className="w-full appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500/20 cursor-pointer"
-                                    >
-                                      <option value="">— Seleccionar área —</option>
-                                      {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                                    </select>
-                                  </div>
-
-                                  {/* Selector de Cargo */}
-                                  <div className="mb-3">
-                                    <label className="block text-[8px] font-sans font-extrabold text-black/50 uppercase tracking-wider mb-1">Cargo</label>
-                                    <select
-                                      value={resp.responsable_id}
-                                      disabled={!resp.area_id}
-                                      onChange={(e) => updateResponsable(criterio.id, { responsable_id: e.target.value })}
-                                      className="w-full appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500/20 cursor-pointer disabled:opacity-40"
-                                    >
-                                      <option value="">{resp.area_id ? "— Seleccionar cargo —" : "— Primero elige un área —"}</option>
-                                      {cargosDelArea.map((r) => <option key={r.id} value={r.id}>{r.cargo}</option>)}
-                                    </select>
-                                  </div>
-
-                                  {/* Botón confirmar + limpiar */}
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => setOpenResponsablePopoverId(null)}
-                                      disabled={!resp.responsable_id}
-                                      className="flex-1 text-[9px] font-sans font-extrabold uppercase tracking-wider bg-[#1E50EF] hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
-                                    >
-                                      Confirmar
-                                    </button>
-                                    {resp.responsable_id && (
-                                      <button
-                                        onClick={() => updateResponsable(criterio.id, { area_id: "", responsable_id: "" })}
-                                        className="text-[9px] font-medium text-red-400 hover:text-red-600 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                                      >
-                                        Quitar
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                          {/* Col 2 — Descripción */}
+                          <div className="w-[46%] shrink-0 border-r border-gray-100 px-4 py-4 flex items-center">
+                            <p className="text-[10px] text-black leading-relaxed font-medium">
+                              {criterio.descripcion}
+                            </p>
                           </div>
 
-                          {/* Cols — Entregable rows stacked vertically */}
-                          <div className="w-[57%] shrink-0 flex flex-col min-w-0">
+                          {/* Col 3 — Entregables stacked vertically */}
+                          <div className="w-[46%] shrink-0 flex flex-col min-w-0">
                             {entregables.map((row, idx) => (
                               <div
                                 key={idx}
                                 className={`flex items-stretch min-h-[68px] ${idx !== 0 ? "border-t border-gray-100" : ""}`}
                               >
-                                {/* Entregable description */}
-                                <div className="w-[78%] shrink-0 px-2 py-3 border-r border-gray-100 flex items-center">
-                                  <textarea
-                                    value={row.descripcion}
-                                    onChange={(e) => updateEntregableRow(criterio.id, idx, { descripcion: e.target.value })}
-                                    placeholder="Descripción del entregable..."
-                                    rows={2}
-                                    className="w-full text-[9px] font-medium text-black bg-transparent resize-none focus:outline-none placeholder-gray-300 leading-relaxed"
-                                  />
-                                </div>
-                                {/* Tipo */}
-                                <div className="w-[13%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center">
-                                  <select
-                                    value={row.tipo_entregable}
-                                    onChange={(e) => updateEntregableRow(criterio.id, idx, { tipo_entregable: e.target.value })}
-                                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500/20 cursor-pointer text-center"
-                                  >
-                                    <option value="">—</option>
-                                    {TIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                  </select>
-                                </div>
-                                {/* Actions */}
-                                <div className="w-[9%] shrink-0 px-2 py-2 flex flex-col items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => saveEntregable(criterio.id, idx)}
-                                    disabled={row.isSaving}
-                                    className="flex items-center justify-center w-7 h-7 bg-blue-50 text-[#1E50EF] hover:bg-blue-100/50 hover:text-blue-700 rounded-md transition-colors disabled:opacity-50"
-                                    title={row.id ? "Actualizar" : "Guardar"}
-                                  >
-                                    {row.isSaving ? (
-                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                {/* Entregable: order number inline with textarea */}
+                                <div className="w-full shrink-0 px-2 pt-2 pb-2 flex flex-col relative">
+                                  <div className="flex items-baseline bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5 mb-2 focus-within:ring-1 focus-within:ring-[#1E50EF]/30 focus-within:border-[#1E50EF]/40 transition-colors gap-1">
+                                    <span className="text-[9px] font-extrabold font-sans text-[#1E50EF] leading-none shrink-0 select-none pointer-events-none">
+                                      {row.orden}.
+                                    </span>
+                                    <textarea
+                                      value={row.descripcion}
+                                      onChange={(e) => updateEntregableRow(criterio.id, idx, { descripcion: e.target.value })}
+                                      placeholder="Descripción del entregable..."
+                                      rows={2}
+                                      className="flex-1 text-[9px] font-medium text-black bg-transparent resize-none focus:outline-none placeholder-gray-300 leading-relaxed"
+                                    />
+                                  </div>
+                                  {/* Action bar: tipo selector + save/delete buttons */}
+                                  <div className="flex items-center gap-1.5">
+                                    <select
+                                      value={row.tipo_entregable}
+                                      onChange={(e) => updateEntregableRow(criterio.id, idx, { tipo_entregable: e.target.value })}
+                                      className="flex-1 appearance-none bg-gray-50 border border-gray-200 text-black text-[8px] rounded-md px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500/20 cursor-pointer"
+                                    >
+                                      <option value="">Tipo…</option>
+                                      {TIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                    <button
+                                      onClick={() => saveEntregable(criterio.id, idx)}
+                                      disabled={row.isSaving}
+                                      className="flex items-center justify-center w-6 h-6 bg-blue-50 text-[#1E50EF] hover:bg-blue-100/50 hover:text-blue-700 rounded-md transition-colors disabled:opacity-50 shrink-0"
+                                      title={row.id ? "Actualizar" : "Guardar"}
+                                    >
+                                      {row.isSaving ? (
+                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => deleteEntregable(criterio.id, idx)}
+                                      disabled={row.isSaving}
+                                      className="flex items-center justify-center w-6 h-6 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 rounded-md transition-colors disabled:opacity-50 shrink-0"
+                                      title="Eliminar"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                       </svg>
-                                    ) : (
-                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => deleteEntregable(criterio.id, idx)}
-                                    disabled={row.isSaving}
-                                    className="flex items-center justify-center w-7 h-7 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 rounded-md transition-colors disabled:opacity-50"
-                                    title="Eliminar"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             ))}
                           </div>
-
                         </div>
                       );
                     })

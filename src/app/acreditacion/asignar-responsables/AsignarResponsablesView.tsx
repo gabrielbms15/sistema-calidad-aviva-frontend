@@ -13,16 +13,6 @@ interface Area { id: string; nombre: string; }
 interface Responsable { id: string; area_id: string; cargo: string; }
 interface CriterioData { id: string; codigo_criterio: string; descripcion: string; codigo_id: string; fuente_0?: string; fuente_1?: string; fuente_2?: string; }
 
-interface EntregableRow {
-  id?: string;
-  criterio_id: string;
-  descripcion: string;
-  tipo_entregable: string;
-  nota: string;
-  orden: number;
-  isSaving: boolean;
-}
-
 interface ResponsableState {
   criterioResponsableId?: string;
   responsable_id: string;
@@ -39,11 +29,6 @@ interface Props {
 }
 
 /* ─── Constants ──────────────────────────────────────────── */
-const TIPO_OPTIONS = [
-  { value: "documento", label: "Documento" },
-  { value: "proceso", label: "Proceso" },
-  { value: "in_situ", label: "Observación" },
-];
 
 /** Macroprocesos ocultos (por orden) */
 const EXCLUDED_MACROS = new Set([8, 12]);
@@ -56,23 +41,6 @@ const EXCLUDED_CRITERIOS = new Set([
 ]);
 
 /* ─── Helpers ────────────────────────────────────────────── */
-function buildEntregables(c: any): EntregableRow[] {
-  const rows: EntregableRow[] = (c.entregable ?? [])
-    .sort((a: any, b: any) => (a.orden ?? 1) - (b.orden ?? 1))
-    .map((e: any) => ({
-      id: e.id,
-      criterio_id: c.id,
-      descripcion: e.descripcion ?? "",
-      tipo_entregable: e.tipo_entregable ?? "",
-      nota: e.nota ?? "",
-      orden: e.orden ?? 1,
-      isSaving: false,
-    }));
-  if (rows.length === 0) {
-    rows.push({ criterio_id: c.id, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
-  }
-  return rows;
-}
 
 function buildResponsable(c: any, responsables: Responsable[]): ResponsableState {
   const cr = c.criterio_responsable?.[0];
@@ -119,12 +87,6 @@ export default function AsignarResponsablesView({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const [entregablesMap, setEntregablesMap] = useState<Record<string, EntregableRow[]>>(() => {
-    const m: Record<string, EntregableRow[]> = {};
-    criteriosIniciales.forEach((c) => { m[c.id] = buildEntregables(c); });
-    return m;
-  });
-
   const [responsableMap, setResponsableMap] = useState<Record<string, ResponsableState>>(() => {
     const m: Record<string, ResponsableState> = {};
     criteriosIniciales.forEach((c) => { m[c.id] = buildResponsable(c, responsables); });
@@ -150,99 +112,22 @@ export default function AsignarResponsablesView({
       if (ids.length > 0) {
         const { data: raw } = await supabase
           .from("criterio")
-          .select("id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,entregable(id,criterio_id,descripcion,tipo_entregable,nota,orden),criterio_responsable(id,criterio_id,responsable_id)")
+          .select("id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,criterio_responsable(id,criterio_id,responsable_id)")
           .in("codigo_id", ids);
         const result = raw ?? [];
         setCriterios(result.map(extractCriterio));
-        const newE: Record<string, EntregableRow[]> = {};
         const newR: Record<string, ResponsableState> = {};
-        result.forEach((c: any) => { newE[c.id] = buildEntregables(c); newR[c.id] = buildResponsable(c, responsables); });
-        setEntregablesMap(newE);
+        result.forEach((c: any) => { newR[c.id] = buildResponsable(c, responsables); });
         setResponsableMap(newR);
       } else {
-        setCriterios([]); setEntregablesMap({}); setResponsableMap({});
+        setCriterios([]); setResponsableMap({});
       }
     });
   };
 
   /* ─── Mutations ─── */
-  const addEntregableRow = (criterioId: string) => {
-    setEntregablesMap((prev) => {
-      const rows = prev[criterioId] ?? [];
-      return { ...prev, [criterioId]: [...rows, { criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: rows.length + 1, isSaving: false }] };
-    });
-  };
-
-  const updateEntregableRow = (criterioId: string, idx: number, patch: Partial<EntregableRow>) => {
-    setEntregablesMap((prev) => {
-      const rows = [...(prev[criterioId] ?? [])];
-      rows[idx] = { ...rows[idx], ...patch };
-      return { ...prev, [criterioId]: rows };
-    });
-  };
-
   const updateResponsable = (criterioId: string, patch: Partial<ResponsableState>) => {
     setResponsableMap((prev) => ({ ...prev, [criterioId]: { ...prev[criterioId], ...patch } }));
-  };
-
-  const saveEntregable = async (criterioId: string, idx: number, silent = false) => {
-    const row = entregablesMap[criterioId]?.[idx];
-    const resp = responsableMap[criterioId];
-    if (!row?.descripcion.trim() || !row.tipo_entregable) {
-      if (!silent) alert("Completa la descripción y el tipo de entregable.");
-      return;
-    }
-    updateEntregableRow(criterioId, idx, { isSaving: true });
-
-    let savedId = row.id;
-
-    if (row.id) {
-      // UPDATE existing entregable
-      const { error } = await supabase
-        .from("entregable")
-        .update({ 
-          descripcion: row.descripcion, 
-          tipo_entregable: row.tipo_entregable, 
-          nota: row.nota || null,
-          orden: row.orden // Always sync order
-        })
-        .eq("id", row.id);
-      if (error) {
-        alert("Error al actualizar el entregable.");
-        updateEntregableRow(criterioId, idx, { isSaving: false }); return;
-      }
-    } else {
-      // INSERT new entregable
-      const { data: saved, error } = await supabase
-        .from("entregable")
-        .insert({ criterio_id: criterioId, descripcion: row.descripcion, tipo_entregable: row.tipo_entregable, nota: row.nota || null, orden: row.orden })
-        .select("id").single();
-      if (error || !saved) {
-        alert("Error al guardar el entregable.");
-        updateEntregableRow(criterioId, idx, { isSaving: false }); return;
-      }
-      savedId = saved.id;
-    }
-
-    // Upsert criterio_responsable
-    if (resp?.responsable_id) {
-      if (resp.criterioResponsableId) {
-        // UPDATE existing responsable
-        await supabase
-          .from("criterio_responsable")
-          .update({ responsable_id: resp.responsable_id })
-          .eq("id", resp.criterioResponsableId);
-      } else {
-        // INSERT new responsable
-        const { data: cr } = await supabase
-          .from("criterio_responsable")
-          .insert({ criterio_id: criterioId, responsable_id: resp.responsable_id })
-          .select("id").single();
-        if (cr) updateResponsable(criterioId, { criterioResponsableId: cr.id });
-      }
-    }
-
-    updateEntregableRow(criterioId, idx, { id: savedId, isSaving: false });
   };
 
   const saveAll = async () => {
@@ -250,110 +135,47 @@ export default function AsignarResponsablesView({
     try {
       const promises: Promise<void>[] = [];
       
-      // We'll iterate and force a re-sequence of everything currently in state
-      const updatedMap = { ...entregablesMap };
-
       for (const criterio of criteriosFiltrados) {
-        const rows = updatedMap[criterio.id] ?? [];
-        // Force sequential order based on current visual position
-        const remappedRows = rows.map((r, i) => ({ ...r, orden: i + 1 }));
-        updatedMap[criterio.id] = remappedRows;
-
-        for (let idx = 0; idx < remappedRows.length; idx++) {
-          const row = remappedRows[idx];
-          if (row.descripcion.trim() && row.tipo_entregable) {
-            // We use a separate function or direct call to ensure we use the NEW order
-            promises.push((async () => {
-              const payload = { 
-                criterio_id: criterio.id, 
-                descripcion: row.descripcion, 
-                tipo_entregable: row.tipo_entregable, 
-                nota: row.nota || null, 
-                orden: row.orden 
-              };
-              if (row.id) {
-                await supabase.from("entregable").update(payload).eq("id", row.id);
+        const resp = responsableMap[criterio.id];
+        if (resp) {
+          promises.push((async () => {
+            if (resp.responsable_id) {
+              if (resp.criterioResponsableId) {
+                // Update
+                await supabase
+                  .from("criterio_responsable")
+                  .update({ responsable_id: resp.responsable_id })
+                  .eq("id", resp.criterioResponsableId);
               } else {
-                await supabase.from("entregable").insert(payload);
+                // Insert
+                const { data: cr } = await supabase
+                  .from("criterio_responsable")
+                  .insert({ criterio_id: criterio.id, responsable_id: resp.responsable_id })
+                  .select("id").single();
+                if (cr) {
+                  updateResponsable(criterio.id, { criterioResponsableId: cr.id });
+                }
               }
-            })());
-          }
+            } else if (resp.criterioResponsableId) {
+              // Delete if they cleared the selection but it had an ID
+              await supabase
+                .from("criterio_responsable")
+                .delete()
+                .eq("id", resp.criterioResponsableId);
+              updateResponsable(criterio.id, { criterioResponsableId: undefined });
+            }
+          })());
         }
       }
       
       await Promise.all(promises);
-      setEntregablesMap(updatedMap); // Update state to reflect new orders
-      alert("Se han sincronizado y guardado todos los cambios correctamente.");
+      alert("Se han guardado los responsables correctamente.");
     } catch (error) {
       console.error(error);
-      alert("Ocurrió un error al guardar todo.");
+      alert("Ocurrió un error al guardar los responsables.");
     } finally {
       setIsSavingAll(false);
     }
-  };
-
-  const deleteEntregable = async (criterioId: string, idx: number) => {
-    const row = entregablesMap[criterioId]?.[idx];
-    if (!row) return;
-
-    if (!row.id) {
-      setEntregablesMap((prev) => {
-        const rows = [...(prev[criterioId] ?? [])];
-        rows.splice(idx, 1);
-        if (rows.length === 0) {
-          rows.push({ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
-        }
-        return { ...prev, [criterioId]: rows };
-      });
-      return;
-    }
-
-    if (!confirm("¿Estás seguro de eliminar este entregable?")) return;
-
-    updateEntregableRow(criterioId, idx, { isSaving: true });
-
-    // 1. Primero obtenemos los seguimientos asociados a este entregable
-    const { data: seguimientos } = await supabase
-      .from("entregable_seguimiento")
-      .select("id")
-      .eq("entregable_id", row.id);
-
-    if (seguimientos && seguimientos.length > 0) {
-      const segIds = seguimientos.map((s) => s.id);
-
-      // 2. Eliminamos las evidencias de esos seguimientos
-      await supabase
-        .from("entregable_evidencia")
-        .delete()
-        .in("entregable_seguimiento_id", segIds);
-
-      // 3. Eliminamos los seguimientos
-      await supabase
-        .from("entregable_seguimiento")
-        .delete()
-        .in("id", segIds);
-    }
-
-    // 4. Finalmente eliminamos el entregable
-    const { error } = await supabase.from("entregable").delete().eq("id", row.id);
-    if (error) {
-      alert("Error al eliminar el entregable.");
-      updateEntregableRow(criterioId, idx, { isSaving: false });
-      return;
-    }
-
-    setEntregablesMap((prev) => {
-      const rows = [...(prev[criterioId] ?? [])];
-      rows.splice(idx, 1);
-      
-      // Re-map orders to ensure 1, 2, 3... sequence
-      const remappedRows = rows.map((r, i) => ({ ...r, orden: i + 1 }));
-      
-      if (remappedRows.length === 0) {
-        remappedRows.push({ criterio_id: criterioId, descripcion: "", tipo_entregable: "", nota: "", orden: 1, isSaving: false });
-      }
-      return { ...prev, [criterioId]: remappedRows };
-    });
   };
 
   const criteriosFiltrados = (selectedCodigoId
@@ -512,10 +334,8 @@ export default function AsignarResponsablesView({
                   {/* Table Header */}
                   <div className="flex border-b border-gray-200 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
                     <div className="w-[8%] shrink-0 px-2 py-2 text-center">Criterio</div>
-                    <div className="w-[20%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Responsable</div>
-                    <div className="w-[57%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Entregable</div>
-                    <div className="w-[8%] shrink-0 px-2 py-2 border-l border-gray-200 text-center">Tipo</div>
-                    <div className="w-[7%] shrink-0 px-2 py-2 border-l border-gray-200 text-center">Acción</div>
+                    <div className="w-[60%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Descripción</div>
+                    <div className="w-[32%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Responsable</div>
                   </div>
 
                   {/* Rows */}
@@ -525,30 +345,18 @@ export default function AsignarResponsablesView({
                     </div>
                   ) : (
                     criteriosFiltrados.map((criterio, ci) => {
-                      const entregables = entregablesMap[criterio.id] ?? [];
                       const resp = responsableMap[criterio.id] ?? { area_id: "", responsable_id: "" };
                       const cargosDelArea = responsables.filter((r) => r.area_id === resp.area_id);
 
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
+                          className={`flex items-stretch min-h-[68px] ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
                           <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
                             <span className="font-sans text-[8px] font-extrabold text-black text-center break-all">{criterio.codigo_criterio}</span>
                             <div className="flex flex-row items-center justify-center gap-2 mt-3 w-full relative" ref={openPopoverCriterioId === criterio.id ? popoverRef : undefined}>
-                              {/* Botón + añadir entregable */}
-                              <button
-                                onClick={() => addEntregableRow(criterio.id)}
-                                className="flex items-center justify-center p-1 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-md transition-colors"
-                                title="Añadir entregable"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                              </button>
-
                               {/* Botón (i) fuentes */}
                               <div className="relative">
                                 <button
@@ -604,8 +412,15 @@ export default function AsignarResponsablesView({
                             </div>
                           </div>
 
-                          {/* Col 2 — Responsable (badge + popover) */}
-                          <div className="w-[20%] shrink-0 border-r border-gray-100 px-3 py-4 flex items-start justify-center relative">
+                          {/* Col 2 — Descripción */}
+                          <div className="w-[60%] shrink-0 border-r border-gray-100 px-4 py-4 flex items-center">
+                            <p className="text-[10px] text-black leading-relaxed font-medium">
+                              {criterio.descripcion}
+                            </p>
+                          </div>
+
+                          {/* Col 3 — Responsable (badge + popover) */}
+                          <div className="w-[32%] shrink-0 px-3 py-4 flex items-center justify-center relative bg-transparent">
                             <div ref={openResponsablePopoverId === criterio.id ? responsablePopoverRef : undefined} className="w-full">
                               {/* Badge / trigger */}
                               <button
@@ -641,11 +456,10 @@ export default function AsignarResponsablesView({
                               {/* Popover de selección */}
                               {openResponsablePopoverId === criterio.id && (
                                 <div
-                                  ref={responsablePopoverRef}
-                                  className={`absolute left-full ml-2 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 ${
+                                  className={`absolute right-0 z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 ${
                                     ci >= criteriosFiltrados.length - 2 && criteriosFiltrados.length > 3
-                                      ? "bottom-0"
-                                      : "top-0"
+                                      ? "bottom-full mb-2"
+                                      : "top-full mt-2"
                                   }`}
                                 >
                                   {/* Header del popover */}
@@ -710,69 +524,6 @@ export default function AsignarResponsablesView({
                               )}
                             </div>
                           </div>
-
-                          {/* Cols — Entregable rows stacked vertically */}
-                          <div className="w-[57%] shrink-0 flex flex-col min-w-0">
-                            {entregables.map((row, idx) => (
-                              <div
-                                key={idx}
-                                className={`flex items-stretch min-h-[68px] ${idx !== 0 ? "border-t border-gray-100" : ""}`}
-                              >
-                                {/* Entregable description */}
-                                <div className="w-[78%] shrink-0 px-2 py-3 border-r border-gray-100 flex items-center">
-                                  <textarea
-                                    value={row.descripcion}
-                                    onChange={(e) => updateEntregableRow(criterio.id, idx, { descripcion: e.target.value })}
-                                    placeholder="Descripción del entregable..."
-                                    rows={2}
-                                    className="w-full text-[9px] font-medium text-black bg-transparent resize-none focus:outline-none placeholder-gray-300 leading-relaxed"
-                                  />
-                                </div>
-                                {/* Tipo */}
-                                <div className="w-[13%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center">
-                                  <select
-                                    value={row.tipo_entregable}
-                                    onChange={(e) => updateEntregableRow(criterio.id, idx, { tipo_entregable: e.target.value })}
-                                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500/20 cursor-pointer text-center"
-                                  >
-                                    <option value="">—</option>
-                                    {TIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                  </select>
-                                </div>
-                                {/* Actions */}
-                                <div className="w-[9%] shrink-0 px-2 py-2 flex flex-col items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => saveEntregable(criterio.id, idx)}
-                                    disabled={row.isSaving}
-                                    className="flex items-center justify-center w-7 h-7 bg-blue-50 text-[#1E50EF] hover:bg-blue-100/50 hover:text-blue-700 rounded-md transition-colors disabled:opacity-50"
-                                    title={row.id ? "Actualizar" : "Guardar"}
-                                  >
-                                    {row.isSaving ? (
-                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => deleteEntregable(criterio.id, idx)}
-                                    disabled={row.isSaving}
-                                    className="flex items-center justify-center w-7 h-7 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 rounded-md transition-colors disabled:opacity-50"
-                                    title="Eliminar"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
                         </div>
                       );
                     })

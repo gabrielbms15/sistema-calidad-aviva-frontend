@@ -48,7 +48,7 @@ export default async function AsignarResponsablesPage() {
       ? await supabase
           .from("criterio")
           .select(
-            "id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,entregable(id,criterio_id,descripcion,tipo_entregable,nota,orden),criterio_responsable(id,criterio_id,responsable_id)"
+            "id,codigo_criterio,descripcion,codigo_id,fuente_0,fuente_1,fuente_2,criterio_responsable(id,criterio_id,responsable_id)"
           )
           .in("codigo_id", codigoIds)
       : { data: [] };
