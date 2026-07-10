@@ -50,9 +50,9 @@ function ProcesoCard({ proceso, imagePath }: { proceso: Proceso; imagePath: stri
   return (
     <Link
       href={`/acreditacion/${proceso.id}`}
-      className="group relative flex flex-col bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:-translate-y-2 overflow-hidden"
+      className="group relative flex flex-col bg-slate-100 rounded-3xl shadow-md hover:shadow-xl hover:bg-white transition-all duration-300 border border-slate-200 hover:border-gray-100 hover:-translate-y-2 overflow-hidden"
     >
-      <div className="relative h-48 w-full bg-gradient-to-br from-[#3d537e]/10 to-[#3d537e]/20 overflow-hidden">
+      <div className="relative h-36 w-full bg-gradient-to-br from-[#3d537e]/10 to-[#3d537e]/20 overflow-hidden">
         {showImage ? (
           <Image
             src={imagePath!}
@@ -65,7 +65,7 @@ function ProcesoCard({ proceso, imagePath }: { proceso: Proceso; imagePath: stri
           <div className="flex items-center justify-center h-full w-full">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="w-20 h-20 text-[#3d537e]/30"
+              className="w-14 h-14 text-[#3d537e]/30"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -80,25 +80,25 @@ function ProcesoCard({ proceso, imagePath }: { proceso: Proceso; imagePath: stri
           </div>
         )}
 
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-[#3d537e] text-sm font-bold px-3 py-1 rounded-full shadow-sm">
+        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-[#3d537e] text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm">
           {proceso.anio}
         </div>
       </div>
 
-      <div className="flex flex-col p-6 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#3d537e]/60 mb-1">
+      <div className="flex flex-col p-4 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[#3d537e]/60 mb-1">
           Proceso de Acreditación
         </p>
-        <h3 className="text-xl font-extrabold text-gray-800 group-hover:text-[#3d537e] transition-colors leading-tight">
+        <h3 className="text-lg font-extrabold text-gray-800 group-hover:text-[#3d537e] transition-colors leading-tight">
           {proceso.sede.nombre}
         </h3>
-        <p className="text-sm text-gray-500 mt-1">Año {proceso.anio}</p>
+        <p className="text-xs text-gray-500 mt-1">Año {proceso.anio}</p>
 
-        <div className="mt-5 flex items-center gap-2 text-[#3d537e] font-semibold text-sm">
+        <div className="mt-4 flex items-center gap-2 text-[#3d537e] font-semibold text-xs">
           <span>Abrir proceso</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1"
+            className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -124,7 +124,7 @@ export default function ProcesosGrid({ procesos }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {procesos.map((proceso) => (
         <ProcesoCard
           key={proceso.id}

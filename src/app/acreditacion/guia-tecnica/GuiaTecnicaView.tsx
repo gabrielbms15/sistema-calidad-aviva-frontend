@@ -73,11 +73,9 @@ export default function GuiaTecnicaView({
   return (
     <div className="flex flex-col h-full font-avenir gap-4">
       {/* Header above the table */}
-      <div className="w-full flex flex-col items-start shrink-0">
-        <h1 className="text-black font-sans font-black text-[19px] leading-snug drop-shadow-sm flex items-center gap-2.5">
-          <span className="flex items-center justify-center bg-aviva-coral1/50 w-7 h-7 rounded-lg text-xs shadow-sm">
-            📖
-          </span>
+      <div className="w-full flex items-center gap-3 shrink-0 pl-2">
+        <span className="text-xl leading-none drop-shadow-sm">📖</span>
+        <h1 className="text-gray-900 font-sans text-[20px] font-bold tracking-tight leading-none">
           Guía Técnica del Evaluador
         </h1>
       </div>

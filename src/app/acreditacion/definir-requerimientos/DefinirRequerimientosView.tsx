@@ -320,12 +320,10 @@ export default function DefinirRequerimientosView({
   return (
     <div className="flex flex-col h-full font-avenir gap-4">
       {/* Header above the table */}
-      <div className="w-full flex flex-col items-start shrink-0">
-        <h1 className="text-black font-sans font-black text-[19px] leading-snug drop-shadow-sm flex items-center gap-2.5">
-          <span className="flex items-center justify-center bg-aviva-coral1/50 w-7 h-7 rounded-lg text-xs shadow-sm">
-            📋
-          </span>
-          Definir Requerimientos
+      <div className="w-full flex items-center gap-3 shrink-0 pl-2">
+        <span className="text-xl leading-none drop-shadow-sm">📋</span>
+        <h1 className="text-gray-900 font-sans text-[20px] font-bold tracking-tight leading-none">
+          Definición de Requerimientos
         </h1>
       </div>
 
@@ -484,7 +482,7 @@ export default function DefinirRequerimientosView({
                           {/* Col 1 — Criterio */}
                           <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
                             <span className="font-sans text-[8px] font-extrabold text-black text-center break-all">{criterio.codigo_criterio}</span>
-                            <div className="flex flex-row items-center justify-center gap-2 mt-3 w-full relative" ref={openPopoverCriterioId === criterio.id ? popoverRef : undefined}>
+                            <div className="flex items-center justify-center mt-3 w-full">
                               {/* Botón + añadir entregable */}
                               <button
                                 onClick={() => addEntregableRow(criterio.id)}
@@ -495,7 +493,15 @@ export default function DefinirRequerimientosView({
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                               </button>
+                            </div>
+                          </div>
 
+                          {/* Col 2 — Descripción */}
+                          <div className="w-[46%] shrink-0 border-r border-gray-100 px-4 py-4 flex flex-col justify-between">
+                            <p className="text-[10px] text-black leading-relaxed font-medium">
+                              {criterio.descripcion}
+                            </p>
+                            <div className="flex justify-end mt-2 w-full relative" ref={openPopoverCriterioId === criterio.id ? popoverRef : undefined}>
                               {/* Botón (i) fuentes */}
                               <div className="relative">
                                 <button
@@ -514,10 +520,8 @@ export default function DefinirRequerimientosView({
                                 {openPopoverCriterioId === criterio.id && (
                                   <div
                                     ref={popoverRef}
-                                    className={`absolute left-full ml-2 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4 ${
-                                      ci >= criteriosFiltrados.length - 2 && criteriosFiltrados.length > 3 
-                                        ? "bottom-0" // Pop upward if near bottom
-                                        : "top-0"    // Pop downward normally
+                                    className={`absolute right-0 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4 ${
+                                      ci === 0 ? "top-full mt-2" : "bottom-full mb-2"
                                     }`}
                                   >
                                     <p className="text-[9px] font-sans font-extrabold uppercase tracking-wider text-black mb-3">Fuentes de verificación</p>
@@ -549,13 +553,6 @@ export default function DefinirRequerimientosView({
                                 )}
                               </div>
                             </div>
-                          </div>
-
-                          {/* Col 2 — Descripción */}
-                          <div className="w-[46%] shrink-0 border-r border-gray-100 px-4 py-4 flex items-center">
-                            <p className="text-[10px] text-black leading-relaxed font-medium">
-                              {criterio.descripcion}
-                            </p>
                           </div>
 
                           {/* Col 3 — Entregables stacked vertically */}

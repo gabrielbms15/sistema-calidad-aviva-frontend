@@ -226,6 +226,40 @@ async function fetchResponsablesForCriterios(
 }
 
 /* ─── Component ──────────────────────────────────────────── */
+/* ─── Helper Components ───────────────────────────────────── */
+const AutoResizeTextarea = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  className?: string;
+}) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [value]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={className}
+      rows={1}
+      style={{ overflow: "hidden" }}
+    />
+  );
+};
+
 export default function EvidenciasView({
   proceso,
   macroprocesos,
@@ -644,86 +678,207 @@ export default function EvidenciasView({
 
   /* ─── Render ─── */
   return (
-    <div className="flex flex-col h-full items-center justify-center font-sans">
-      <div className="w-full mb-4 flex flex-col items-start gap-3">
-        <h1 className="text-gray-900 text-3xl font-extrabold leading-snug drop-shadow-sm">
-          Recopilación de Evidencias
-        </h1>
-        
-        <div className="w-full bg-white px-4 py-2.5 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
-          
+    <div className="flex flex-col h-full font-avenir gap-4">
+      
+      {/* ─── Encabezado y Filtros ─── */}
+      <div className="w-[95%] flex flex-col gap-4">
+        {/* Título */}
+        <div className="w-full flex items-center justify-between shrink-0 pl-2">
+          <div className="flex items-center gap-3">
+            <span className="text-xl leading-none drop-shadow-sm">📁</span>
+            <h1 className="text-gray-900 font-sans text-[20px] font-bold tracking-tight leading-none">
+              Recopilación de Evidencias
+            </h1>
+          </div>
+          <Link
+            href={`/acreditacion/${proceso.id}`}
+            className="inline-flex items-center gap-1.5 text-gray-500 hover:text-[#1E50EF] text-[11px] font-bold tracking-wide uppercase transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver
+          </Link>
+        </div>
+
+        {/* Componente Horizontal (Filtros y Sede) */}
+        <div className="w-full bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
           {/* Izquierda: Filtros comprimidos */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-700 shrink-0">Área:</span>
-              <select
-                value={selectedArea}
-                onChange={(e) => {
-                  setSelectedArea(e.target.value);
-                  setSelectedResponsableId("");
-                }}
-                disabled={isPending}
-                className="w-48 appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-all"
-              >
-                <option value="">— Todas las Áreas —</option>
-                {areas.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
+              <span className="text-[9px] text-black font-bold shrink-0">Área:</span>
+              <div className="relative">
+                <select
+                  value={selectedArea}
+                  onChange={(e) => {
+                    setSelectedArea(e.target.value);
+                    setSelectedResponsableId("");
+                  }}
+                  disabled={isPending}
+                  className="appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-all disabled:opacity-50 font-medium w-48 truncate"
+                >
+                  <option value="">— Todas las Áreas —</option>
+                  {areas.map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-700 shrink-0">Responsable:</span>
-              <select
-                value={selectedResponsableId}
-                onChange={(e) => setSelectedResponsableId(e.target.value)}
-                disabled={isPending || !selectedArea}
-                className="w-56 appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-all disabled:opacity-50"
-              >
-                <option value="">Todos los responsables</option>
-                {responsablesDropdown.map((r) => (
-                  <option key={r.responsable_id} value={r.responsable_id}>
-                    {r.nombre} {r.apellido} | {r.cargo}
-                  </option>
-                ))}
-              </select>
+              <span className="text-[9px] text-black font-bold shrink-0">Responsable:</span>
+              <div className="relative">
+                <select
+                  value={selectedResponsableId}
+                  onChange={(e) => setSelectedResponsableId(e.target.value)}
+                  disabled={isPending || !selectedArea}
+                  className="appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-all disabled:opacity-50 font-medium w-56 truncate"
+                >
+                  <option value="">Todos los responsables</option>
+                  {responsablesDropdown.map((r) => (
+                    <option key={r.responsable_id} value={r.responsable_id}>
+                      {r.nombre} {r.apellido} | {r.cargo}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 
           {/* Derecha: Sede y Periodo */}
           <div className="flex items-center gap-2">
-            <span className="bg-blue-100 text-blue-700 font-semibold text-[11px] uppercase tracking-wider px-2 py-1 rounded">Sede {proceso.sede.nombre}</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-gray-600 text-xs font-medium">Proceso de Acreditación {proceso.anio}</span>
+            <span className="bg-[#EBF1FA] text-[#1E50EF] font-bold text-[9px] px-2 py-1 rounded-md shrink-0">
+              Sede {proceso.sede.nombre}
+            </span>
+            <span className="bg-aviva-coral1/10 text-aviva-coral1 font-bold text-[9px] px-2 py-1 rounded-md shrink-0">
+              Proceso {proceso.anio}
+            </span>
           </div>
-
         </div>
       </div>
 
-      <div className="w-full flex flex-col h-[80vh] min-h-[500px] bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
+      {/* ─── Contenido Principal (Sidebar + Tabla) ─── */}
+      <div className="flex-1 min-h-0 grid grid-cols-[22.5%_1fr] gap-4 overflow-hidden w-[95%]">
+        
+        {/* Sidebar de Macroprocesos */}
+        <aside className="col-span-1 bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden border border-gray-200 relative">
+          <div className="px-4 pt-4 pb-2 flex items-center gap-2 border-b border-gray-100 mb-2 shrink-0">
+            <svg className="w-3.5 h-3.5 text-[#1E50EF] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span className="font-sans font-extrabold text-black text-[9px] uppercase tracking-wider">
+              Macroprocesos
+            </span>
+          </div>
 
-        {/* ─── Header ─── */}
-        <div className="bg-[#272729] border-b border-white/10 flex flex-col shrink-0">
-          <div className="px-8 py-2.5 flex items-center justify-between">
-            <h2 className="text-white text-base leading-tight">
+          <OverlayScrollbarsComponent
+            element="nav"
+            options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-dark" } }}
+            defer
+            className="flex-1 py-1 px-3"
+          >
+            {isLoadingGlobal && selectedArea && (
+              <div className="flex items-center justify-center gap-2 px-4 py-3 mb-2">
+                <svg className="w-3.5 h-3.5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span className="text-[10px] text-gray-400 font-medium">Filtrando...</span>
+              </div>
+            )}
+            
+            {macroprocesosVisibles.map((macro) => {
+              const isActive = macro.id === selectedMacroId;
+              return (
+                <button
+                  key={macro.id}
+                  onClick={() => handleMacroprocesoClick(macro)}
+                  disabled={isPending}
+                  className={`w-full text-left flex flex-row items-stretch gap-3 px-3 py-2 rounded-xl mb-1.5 transition-all duration-200 group ${
+                    isActive
+                      ? "border border-[#DEEBF7] shadow-md bg-[#DEEBF7] text-[#02163a] scale-[1.02]"
+                      : "text-black/60 hover:text-black hover:bg-black/5"
+                  }`}
+                >
+                  <div
+                    className={`flex items-center justify-center shrink-0 w-8 rounded-lg text-[9px] font-extrabold transition-colors duration-200 shadow-sm ${
+                      isActive
+                        ? "bg-[#1E50EF] text-white"
+                        : "bg-gray-200 text-gray-900"
+                    }`}
+                  >
+                    {macro.orden}
+                  </div>
+                  <div className="flex flex-col justify-center min-w-0">
+                    <span className={`font-bold text-[9px] tracking-wide mb-0.5 truncate ${isActive ? "text-[#02163a] font-extrabold" : "text-black/90 group-hover:text-black"}`}>
+                      {macro.codigo}
+                    </span>
+                    <span className={`text-[7px] leading-snug line-clamp-2 ${isActive ? "text-[#02163a]/80" : "text-black/60 group-hover:text-black/80"}`}>
+                      {macro.nombre}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+            
+            {macroIdsValidos && macroprocesosVisibles.length === 0 && !isLoadingGlobal && (
+              <p className="text-[11px] text-gray-400 italic px-4 py-3 text-center">Sin macroprocesos para esta área.</p>
+            )}
+          </OverlayScrollbarsComponent>
+          
+          <div className="px-5 py-3 border-t border-gray-100">
+            <p className="text-[9px] text-black/40">Sistema de Calidad · Aviva</p>
+          </div>
+        </aside>
+
+        {/* Tabla Principal */}
+        <main className="col-span-1 bg-white rounded-2xl shadow-lg border border-gray-200 flex flex-col min-w-0 overflow-hidden relative">
+          
+          {isPending && (
+            <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex flex-col items-center justify-center">
+              <svg className="w-10 h-10 animate-spin text-[#1E50EF]" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <p className="mt-3 text-sm font-bold text-[#1E50EF] uppercase tracking-widest">Cargando</p>
+            </div>
+          )}
+
+          {/* Cabecera integrada */}
+          <div className="bg-white px-6 pt-5 pb-2 flex items-center justify-between shrink-0">
+            <h2 className="text-black text-[13px] leading-tight flex items-center gap-3">
               {macroActual ? (
                 <>
-                  <span className="font-bold">Macroproceso {macroActual.orden}</span>
-                  <span className="ml-8 mr-8 text-white/30 font-light">|</span>
-                  <span className="font-light text-white/90">{macroActual.nombre}</span>
+                  <span className="font-sans font-extrabold text-black">Macroproceso {macroActual.orden}</span>
+                  <span className="text-black/30 font-light">|</span>
+                  <span className="font-medium text-black">{macroActual.nombre}</span>
                 </>
               ) : (
-                <span className="text-white/50 italic">Cargando...</span>
+                <span className="text-gray-400 italic text-[13px]">Cargando...</span>
               )}
             </h2>
+            
+            {/* Selector de codigo */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-white/50 font-medium">Estándar:</span>
+              <span className="text-[9px] text-black font-bold">Estándar:</span>
               <div className="relative">
                 <select
                   value={selectedCodigoId ?? ""}
                   onChange={(e) => setSelectedCodigoId(e.target.value || null)}
                   disabled={isPending}
-                  className="w-40 appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-all disabled:opacity-50"
+                  className="appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-all w-24 font-medium disabled:opacity-50"
                 >
                   <option value="">Todos</option>
                   {codigos.map((c) => (
@@ -732,98 +887,38 @@ export default function EvidenciasView({
                     </option>
                   ))}
                 </select>
-                <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ─── Body ─── */}
-        <div className="flex flex-1 min-h-0 overflow-hidden relative">
-
-          {/* Loading overlay */}
-          {isPending && (
-            <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex flex-col items-center justify-center">
-              <svg className="w-10 h-10 animate-spin text-[#3d537e]" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              <p className="mt-3 text-sm font-bold text-[#3d537e] uppercase tracking-widest">Cargando</p>
-            </div>
-          )}
-
-          {/* Sidebar */}
-          <aside className="w-64 shrink-0 bg-[#3d557c] flex flex-col border-r border-white/5">
-            <OverlayScrollbarsComponent
-              element="nav"
-              options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-dark" } }}
-              defer
-              className="flex-1 py-3 px-4"
-            >
-              {isLoadingGlobal && selectedArea && (
-                <div className="flex items-center gap-2 px-4 py-2 mb-2">
-                  <svg className="w-3.5 h-3.5 animate-spin text-white/40" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  <span className="text-[10px] text-white/40">Filtrando...</span>
-                </div>
-              )}
-              {macroprocesosVisibles.map((macro) => {
-                const isActive = macro.id === selectedMacroId;
-                return (
-                  <button
-                    key={macro.id}
-                    onClick={() => handleMacroprocesoClick(macro)}
-                    className={`w-full text-left flex flex-col px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${isActive
-                      ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
-                      : "text-white/50 hover:text-white/80 hover:bg-white/5"
-                      }`}
-                  >
-                    <span className="font-bold text-sm tracking-wide mb-1 text-white">{macro.orden}. {macro.codigo}</span>
-                    <span className={`text-[11px] leading-snug ${isActive ? "text-white" : "text-white/70"}`}>{macro.nombre}</span>
-                  </button>
-                );
-              })}
-              {macroIdsValidos && macroprocesosVisibles.length === 0 && !isLoadingGlobal && (
-                <p className="text-[11px] text-white/30 italic px-4 py-3">Sin macroprocesos para esta área.</p>
-              )}
-            </OverlayScrollbarsComponent>
-            <div className="px-5 py-4 border-t border-white/5">
-              <p className="text-[10px] text-white/20">Sistema de Calidad · Aviva</p>
-            </div>
-          </aside>
-
-          {/* Main content */}
-          <main className="flex-1 flex flex-col min-w-0 bg-[#f8f8f8]">
-            {/* Header Código Descripción */}
-            {selectedCodigoId && (() => {
-              const obj = codigos.find((c) => c.id === selectedCodigoId);
-              return obj ? (
-                <div className="bg-white px-8 py-3 border-b border-gray-200 text-sm text-gray-600 shrink-0">
-                  <span className="font-bold text-gray-900 mr-2">{obj.codigo}:</span>
-                  {obj.descripcion}
-                </div>
-              ) : null;
-            })()}
+          {/* Subheader estándar seleccionado */}
+          {selectedCodigoId && (() => {
+            const obj = codigos.find((c) => c.id === selectedCodigoId);
+            return obj ? (
+              <div className="bg-white px-8 py-4 border-b border-gray-200 text-[13px] text-black shadow-sm animate-in fade-in shrink-0">
+                <span className="font-bold text-black mr-2">{obj.codigo}:</span>
+                {obj.descripcion}
+              </div>
+            ) : null;
+          })()}
 
             <OverlayScrollbarsComponent
               element="div"
               options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }}
               defer
-              className="flex-1 p-6"
+              className="flex-1 px-6 pb-6 pt-1"
             >
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex border-b border-gray-200 bg-gray-200/80 text-[11px] font-bold uppercase tracking-wider text-gray-500 shrink-0">
-                  <div className="w-[5%] shrink-0 px-2 py-3 text-center">Cr.</div>
-                  <div className="w-[30%] shrink-0 px-3 py-3 border-l border-gray-200">Entregable</div>
-                  <div className="w-[5%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Tipo</div>
-                  <div className="w-[11%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Estado</div>
-                  <div className="w-[23%] shrink-0 px-3 py-3 border-l border-gray-200">Evidencia</div>
-                  <div className="w-[21%] shrink-0 px-3 py-3 border-l border-gray-200">Fuente</div>
-                  <div className="w-[5%] shrink-0 px-2 py-3 border-l border-gray-200 text-center">Acción</div>
+                <div className="flex border-b border-gray-200 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
+                  <div className="w-[8%] shrink-0 px-2 py-2 text-center flex items-center justify-center">Criterio</div>
+                  <div className="w-[43%] shrink-0 px-3 py-2 border-l border-gray-200 flex items-center">Entregable</div>
+                  <div className="w-[49%] shrink-0 px-3 py-2 border-l border-gray-200 flex items-center">Evidencia</div>
                 </div>
 
                 {/* Rows */}
@@ -842,8 +937,8 @@ export default function EvidenciasView({
                           className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
-                          <div className="w-[5%] shrink-0 border-r border-gray-100 px-1.5 py-2 flex flex-col items-center justify-between">
-                            <span className="font-mono text-[10px] font-bold text-gray-900 text-center break-all leading-tight">
+                          <div className="w-[8%] shrink-0 border-r border-gray-100 px-1.5 py-2 flex flex-col items-center justify-between">
+                            <span className="font-sans text-[8px] font-extrabold text-black text-center break-all leading-tight">
                               {criterio.codigo_criterio}
                             </span>
                             {/* Info buttons — bottom, side by side */}
@@ -943,7 +1038,7 @@ export default function EvidenciasView({
                           </div>
 
                           {/* Cols 2-7 — Entregable rows stacked */}
-                          <div className="w-[95%] shrink-0 flex flex-col min-w-0">
+                          <div className="w-[92%] shrink-0 flex flex-col min-w-0">
                             {entregables.length === 0 ? (
                               <div className="flex items-center px-4 py-3 text-xs text-gray-300 italic">
                                 Sin entregables definidos.
@@ -959,118 +1054,118 @@ export default function EvidenciasView({
                                     className={`flex flex-col ${idx !== 0 ? "border-t border-gray-100" : ""}`}
                                   >
                                     <div className="flex min-h-[72px]">
-                                      {/* Left side (Cols 2-4) 46/95 = 48.4% */}
-                                      <div className="w-[48.4%] flex items-stretch border-r border-gray-100">
-                                        {/* Entregable 30/46 = 65.2% */}
-                                        <div className="w-[65.2%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative">
-                                          <p className="text-sm text-gray-700 leading-relaxed pr-14">
-                                            {row.descripcion}
-                                          </p>
-                                          <div className="absolute bottom-2 right-2 flex gap-1">
+                                      {/* Left side (Entregable + Estado merged) */}
+                                      <div className="w-[46.7%] shrink-0 px-3 py-3 border-r border-gray-100 flex flex-col justify-between relative min-h-[72px]">
+                                        <p className="text-[9px] font-medium text-black leading-relaxed pb-6">
+                                          {row.descripcion}
+                                        </p>
+                                        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between gap-2">
+                                          {/* Left side: Tipo */}
+                                          {row.tipo_entregable ? (
+                                            <span className="text-[8px] font-bold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                              {(() => {
+                                                const t = row.tipo_entregable.replace("_", " ");
+                                                return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+                                              })()}
+                                            </span>
+                                          ) : (
+                                            <span className="text-gray-300 text-[8px]">—</span>
+                                          )}
+
+                                          {/* Right side: Actions & Estado */}
+                                          <div className="flex items-center gap-1.5">
+                                            <select
+                                              value={seg.estado}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                updateSeguimiento(criterio.id, idx, { estado: val });
+                                                saveSeguimiento(row.id, seg, { estado: val }, criterio.id, idx);
+                                              }}
+                                              className={`appearance-none text-center text-[8px] font-bold rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer transition-colors border ${estadoColor}`}
+                                            >
+                                              {ESTADO_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                  {opt.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            
                                             <button
                                               onClick={() => updateSeguimiento(criterio.id, idx, { isObservacionOpen: !seg.isObservacionOpen })}
-                                              className={`transition-colors ${seg.observacion ? "text-amber-500 hover:text-amber-600" : "text-gray-400 hover:text-gray-600"}`}
+                                              className={`transition-colors p-1 rounded-md ${seg.observacion ? "text-amber-500 hover:text-amber-600 bg-amber-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
                                               title="Añadir/Ver observación"
                                             >
-                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                               </svg>
                                             </button>
                                             <button
                                               onClick={() => addEvidencia(criterio.id, idx)}
-                                              className="text-gray-400 hover:text-blue-600 transition-colors"
+                                              className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1 rounded-md transition-colors"
                                               title="Añadir evidencia"
                                             >
-                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                                               </svg>
                                             </button>
                                           </div>
                                         </div>
-                                        {/* Tipo 5/46 = 10.9% */}
-                                        <div className="w-[10.9%] shrink-0 px-1 py-3 border-r border-gray-100 flex items-center justify-center">
-                                          {row.tipo_entregable ? (
-                                            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap">
-                                              {TIPO_LABELS[row.tipo_entregable] ?? row.tipo_entregable}
-                                            </span>
-                                          ) : (
-                                            <span className="text-gray-300 text-xs">—</span>
-                                          )}
-                                        </div>
-                                        {/* Estado 11/46 = 23.9% */}
-                                        <div className="w-[23.9%] shrink-0 px-2 py-3 flex items-center">
-                                          <select
-                                            value={seg.estado}
-                                            onChange={(e) => {
-                                              const val = e.target.value;
-                                              updateSeguimiento(criterio.id, idx, { estado: val });
-                                              saveSeguimiento(row.id, seg, { estado: val }, criterio.id, idx);
-                                            }}
-                                            className={`w-full appearance-none text-center text-xs font-medium rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors border ${estadoColor}`}
-                                          >
-                                            {ESTADO_OPTIONS.map((opt) => (
-                                              <option key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
                                       </div>
 
-                                      {/* Right side (Cols 5-7) 51.6% */}
-                                      <div className="w-[51.6%] flex flex-col min-w-0">
+                                      {/* Right side (Col 4) 49/92 = 53.3% */}
+                                      <div className="w-[53.3%] flex flex-col min-w-0">
                                         {row.evidencias.map((ev, evIdx) => (
-                                          <div key={ev.id || evIdx} className={`flex items-stretch min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-100" : ""}`}>
-                                            {/* Evidencia 44.6% */}
-                                            <div className="w-[44.6%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center">
-                                              <textarea
+                                          <div key={ev.id || evIdx} className={`flex flex-col px-3 pt-3 pb-1.5 min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-100" : ""}`}>
+                                            
+                                            {/* Textareas / Inputs */}
+                                            <div className="flex flex-col gap-1.5">
+                                              <AutoResizeTextarea
                                                 value={ev.nombre_evidencia}
                                                 onChange={(e) => updateEvidencia(criterio.id, idx, evIdx, { nombre_evidencia: e.target.value })}
-                                                placeholder="Ej. Acta de comité..."
-                                                className="w-full text-sm text-gray-700 bg-transparent border-0 focus:ring-0 p-0 resize-none h-full focus:outline-none placeholder:text-gray-300"
-                                                rows={2}
+                                                placeholder="Ingrese el nombre del documento"
+                                                className="w-full text-[9px] font-medium text-black bg-gray-50 border border-gray-200 rounded px-2 py-1.5 resize-none focus:ring-1 focus:ring-blue-500 focus:outline-none placeholder:text-gray-400"
                                               />
+                                              <div className="flex items-center gap-2">
+                                                <div className="relative flex-1 group">
+                                                  <input
+                                                    type="text"
+                                                    value={ev.link_evidencia}
+                                                    onChange={(e) => updateEvidencia(criterio.id, idx, evIdx, { link_evidencia: e.target.value })}
+                                                    placeholder="Ingrese el link al documento"
+                                                    className="w-full text-[9px] font-medium text-blue-600 bg-gray-50 border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none placeholder:text-gray-400 pr-8"
+                                                  />
+                                                  {ev.link_evidencia && ev.link_evidencia.startsWith("http") && (
+                                                    <a
+                                                      href={ev.link_evidencia}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                                                      title="Abrir enlace"
+                                                    >
+                                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                      </svg>
+                                                    </a>
+                                                  )}
+                                                </div>
+                                              </div>
                                             </div>
 
-                                            {/* Fuente 45.3% */}
-                                            <div className="w-[45.3%] shrink-0 px-3 py-3 border-r border-gray-100 flex items-center relative group">
-                                              <input
-                                                type="text"
-                                                value={ev.link_evidencia}
-                                                onChange={(e) => updateEvidencia(criterio.id, idx, evIdx, { link_evidencia: e.target.value })}
-                                                placeholder="https://..."
-                                                className="w-full text-sm text-blue-600 bg-transparent border-0 focus:ring-0 p-0 h-full focus:outline-none placeholder:text-gray-300 truncate pr-6"
-                                              />
-                                              {ev.link_evidencia && ev.link_evidencia.startsWith("http") && (
-                                                <a
-                                                  href={ev.link_evidencia}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="absolute right-2 p-1 text-gray-400 hover:text-blue-600 transition-colors bg-white rounded shadow-sm opacity-0 group-hover:opacity-100 border border-gray-100"
-                                                  title="Abrir enlace"
-                                                >
-                                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                  </svg>
-                                                </a>
-                                              )}
-                                            </div>
-
-                                            {/* Acción 5/49 = 10.2% */}
-                                            <div className="w-[10.2%] shrink-0 py-2 flex flex-col items-center justify-center gap-1.5">
+                                            {/* Actions */}
+                                            <div className="mt-0.5 flex justify-end gap-1.5">
                                               <button
                                                 onClick={() => saveEvidencia(criterio.id, idx, evIdx)}
                                                 disabled={ev.isSaving}
-                                                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50"
+                                                className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50"
                                                 title="Guardar"
                                               >
                                                 {ev.isSaving ? (
-                                                  <svg className="w-4 h-4 animate-spin text-green-500" fill="none" viewBox="0 0 24 24">
+                                                  <svg className="w-3 h-3 animate-spin text-green-500" fill="none" viewBox="0 0 24 24">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                                                   </svg>
                                                 ) : (
-                                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                   </svg>
                                                 )}
@@ -1078,10 +1173,10 @@ export default function EvidenciasView({
                                               <button
                                                 onClick={() => removeEvidencia(criterio.id, idx, evIdx)}
                                                 disabled={ev.isSaving}
-                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
                                                 title="Eliminar fila"
                                               >
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
                                               </button>
@@ -1133,57 +1228,43 @@ export default function EvidenciasView({
                   )
                 )}
               </div>
-
-              {/* Stats */}
-              {!isPending && (
-                <div className="flex items-center justify-between mt-4 px-1">
-                  <p className="text-xs text-gray-400">
-                    Mostrando <span className="font-medium text-gray-600">{criteriosFiltrados.length}</span>{" "}
-                    de <span className="font-medium text-gray-600">{criterios.length}</span> criterios
-                  </p>
-
-                  <div className="flex items-center gap-4">
-                    {selectedCodigoId && (
-                      <button onClick={() => setSelectedCodigoId(null)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-                        Limpiar filtro
-                      </button>
-                    )}
-                    <button
-                      onClick={saveAll}
-                      disabled={isSavingAll}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl shadow-sm transition-all disabled:opacity-50"
-                    >
-                      {isSavingAll ? (
-                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                      {isSavingAll ? "Guardando..." : "Guardar todo"}
-                    </button>
-                  </div>
-                </div>
-              )}
             </OverlayScrollbarsComponent>
-          </main>
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="w-full mt-4 flex justify-end">
-        <Link
-          href={`/acreditacion/${proceso.id}`}
-          className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm transition-colors font-medium"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver al Dashboard
-        </Link>
+            {/* Stats & Actions Footer */}
+            {!isPending && (
+              <div className="flex items-center justify-between px-5 py-4 bg-white border-t border-gray-100 shrink-0">
+                <p className="text-[9px] text-black/60">
+                  Mostrando <span className="font-semibold text-black">{criteriosFiltrados.length}</span>{" "}
+                  de <span className="font-semibold text-black">{criterios.length}</span> criterios
+                </p>
+                
+                <div className="flex items-center gap-4">
+                  {selectedCodigoId && (
+                    <button onClick={() => setSelectedCodigoId(null)} className="text-[9px] text-blue-500 hover:text-blue-700 transition-colors">
+                      Limpiar filtro ×
+                    </button>
+                  )}
+                  <button
+                    onClick={saveAll}
+                    disabled={isSavingAll}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-neutral-800 text-white text-[9px] uppercase tracking-wider font-sans font-extrabold rounded-lg shadow-sm transition-all disabled:opacity-50"
+                  >
+                    {isSavingAll ? (
+                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    {isSavingAll ? "Guardando..." : "Guardar todo"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
       </div>
     </div>
   );
