@@ -327,13 +327,13 @@ export default function AsignarResponsablesView({
               </div>
             ) : (
               <div className="px-6 pb-4 pt-1">
-                <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden bg-white">
+                <div className="flex flex-col border border-gray-300 rounded-xl overflow-hidden bg-white">
                   
                   {/* Table Header */}
-                  <div className="flex border-b border-gray-200 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
+                  <div className="flex border-b border-gray-300 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
                     <div className="w-[8%] shrink-0 px-2 py-2 text-center">Criterio</div>
-                    <div className="w-[60%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Descripción</div>
-                    <div className="w-[32%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Responsable</div>
+                    <div className="w-[60%] shrink-0 px-3 py-2 border-l border-gray-300 text-center">Descripción</div>
+                    <div className="w-[32%] shrink-0 px-3 py-2 border-l border-gray-300 text-center">Responsable</div>
                   </div>
 
                   {/* Rows */}
@@ -349,10 +349,10 @@ export default function AsignarResponsablesView({
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex items-stretch min-h-[68px] ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
+                          className={`flex items-stretch min-h-[68px] ${ci !== 0 ? "border-t border-gray-300" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
-                          <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
+                          <div className="w-[8%] shrink-0 border-r border-gray-300 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
                             <span className="font-sans text-[8px] font-extrabold text-black text-center break-all">{criterio.codigo_criterio}</span>
                             <div className="flex flex-row items-center justify-center gap-2 mt-3 w-full relative" ref={openPopoverCriterioId === criterio.id ? popoverRef : undefined}>
                               {/* Botón (i) fuentes */}
@@ -411,7 +411,7 @@ export default function AsignarResponsablesView({
                           </div>
 
                           {/* Col 2 — Descripción */}
-                          <div className="w-[60%] shrink-0 border-r border-gray-100 px-4 py-4 flex items-center">
+                          <div className="w-[60%] shrink-0 border-r border-gray-300 px-4 py-4 flex items-center">
                             <p className="text-[10px] text-black leading-relaxed font-medium">
                               {criterio.descripcion}
                             </p>

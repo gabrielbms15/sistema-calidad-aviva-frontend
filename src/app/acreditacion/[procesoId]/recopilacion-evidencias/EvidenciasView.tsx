@@ -914,11 +914,11 @@ export default function EvidenciasView({
               defer
               className="flex-1 px-6 pb-6 pt-1"
             >
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex border-b border-gray-200 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
+              <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden">
+                <div className="flex border-b border-gray-300 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
                   <div className="w-[8%] shrink-0 px-2 py-2 text-center flex items-center justify-center">Criterio</div>
-                  <div className="w-[43%] shrink-0 px-3 py-2 border-l border-gray-200 flex items-center">Entregable</div>
-                  <div className="w-[49%] shrink-0 px-3 py-2 border-l border-gray-200 flex items-center">Evidencia</div>
+                  <div className="w-[43%] shrink-0 px-3 py-2 border-l border-gray-300 flex items-center">Entregable</div>
+                  <div className="w-[49%] shrink-0 px-3 py-2 border-l border-gray-300 flex items-center">Evidencia</div>
                 </div>
 
                 {/* Rows */}
@@ -934,10 +934,10 @@ export default function EvidenciasView({
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
+                          className={`flex ${ci !== 0 ? "border-t border-gray-300" : ""} ${ci % 2 !== 0 ? "bg-gray-100" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
-                          <div className="w-[8%] shrink-0 border-r border-gray-100 px-1.5 py-2 flex flex-col items-center justify-between">
+                          <div className="w-[8%] shrink-0 border-r border-gray-300 px-1.5 py-2 flex flex-col items-center justify-between">
                             <span className="font-sans text-[8px] font-extrabold text-black text-center break-all leading-tight">
                               {criterio.codigo_criterio}
                             </span>
@@ -1051,11 +1051,11 @@ export default function EvidenciasView({
                                 return (
                                   <div
                                     key={row.id}
-                                    className={`flex flex-col ${idx !== 0 ? "border-t border-gray-100" : ""}`}
+                                    className={`flex flex-col ${idx !== 0 ? "border-t border-gray-300" : ""}`}
                                   >
                                     <div className="flex min-h-[72px]">
                                       {/* Left side (Entregable + Estado merged) */}
-                                      <div className="w-[46.7%] shrink-0 px-3 py-3 border-r border-gray-100 flex flex-col justify-between relative min-h-[72px]">
+                                      <div className="w-[46.7%] shrink-0 px-3 py-3 border-r border-gray-300 flex flex-col justify-between relative min-h-[72px]">
                                         <p className="text-[9px] font-medium text-black leading-relaxed pb-6">
                                           {row.descripcion}
                                         </p>
@@ -1115,7 +1115,7 @@ export default function EvidenciasView({
                                       {/* Right side (Col 4) 49/92 = 53.3% */}
                                       <div className="w-[53.3%] flex flex-col min-w-0">
                                         {row.evidencias.map((ev, evIdx) => (
-                                          <div key={ev.id || evIdx} className={`flex flex-col px-3 pt-3 pb-1.5 min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-100" : ""}`}>
+                                          <div key={ev.id || evIdx} className={`flex flex-col px-3 pt-3 pb-1.5 min-h-[72px] ${evIdx !== 0 ? "border-t border-gray-300" : ""}`}>
                                             
                                             {/* Textareas / Inputs */}
                                             <div className="flex flex-col gap-1.5">
@@ -1188,22 +1188,22 @@ export default function EvidenciasView({
 
                                     {/* Observation Panel */}
                                     {seg.isObservacionOpen && (
-                                      <div className="bg-amber-50 p-3 border-t border-amber-100/80 flex flex-col gap-2 relative">
+                                      <div className="bg-amber-50 p-2.5 border-t border-amber-200/50 flex flex-col gap-1.5 relative">
                                         <div className="flex items-center justify-between">
-                                          <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                                          <label className="text-[8px] font-sans font-extrabold text-amber-800 uppercase tracking-wider flex items-center gap-1">
                                             <span>📝</span> Observación
                                           </label>
-                                          <div className="flex gap-2">
+                                          <div className="flex gap-1.5">
                                             <button
                                               onClick={() => updateSeguimiento(criterio.id, idx, { isObservacionOpen: false })}
-                                              className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700 transition-colors"
+                                              className="text-[8px] font-sans font-extrabold uppercase tracking-wider px-2 py-1 text-gray-500 hover:text-gray-700 transition-colors"
                                             >
                                               Cerrar
                                             </button>
                                             <button
                                               onClick={() => saveSeguimiento(row.id, seg, undefined, criterio.id, idx)}
                                               disabled={seg.isSavingObservacion}
-                                              className="text-xs px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded font-medium transition-colors disabled:opacity-50 shadow-sm"
+                                              className="text-[8px] font-sans font-extrabold uppercase tracking-wider px-2.5 py-1 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded transition-colors disabled:opacity-50 shadow-sm"
                                             >
                                               {seg.isSavingObservacion ? "Guardando..." : "Guardar nota"}
                                             </button>
@@ -1213,7 +1213,7 @@ export default function EvidenciasView({
                                           value={seg.observacion}
                                           onChange={(e) => updateSeguimiento(criterio.id, idx, { observacion: e.target.value })}
                                           placeholder="Escribe una observación o comentario adicional para este entregable..."
-                                          className="w-full text-sm text-gray-700 bg-white/70 border border-amber-200/50 rounded-md p-2.5 resize-y focus:outline-none focus:ring-1 focus:ring-amber-400 focus:bg-white transition-colors min-h-[60px]"
+                                          className="w-full text-[9px] font-medium text-gray-700 bg-white/70 border border-amber-200/50 rounded p-2 resize-y focus:outline-none focus:ring-1 focus:ring-amber-400 focus:bg-white transition-colors min-h-[50px] leading-relaxed"
                                         />
                                       </div>
                                     )}

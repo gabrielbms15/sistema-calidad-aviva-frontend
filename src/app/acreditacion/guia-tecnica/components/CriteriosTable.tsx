@@ -91,16 +91,16 @@ export default function CriteriosTable({
           </div>
         ) : (
           <div className="px-6 pb-4 pt-1">
-            <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex flex-col border border-gray-300 rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[70px_calc(50%-80px)_calc(50%+10px)] border-b border-gray-200 bg-[#DEEBF7]">
+              <div className="grid grid-cols-[70px_calc(50%-80px)_calc(50%+10px)] border-b border-gray-300 bg-[#DEEBF7]">
                 <div className="px-5 py-2 text-[8px] font-sans font-extrabold uppercase tracking-wider text-black text-center">
                   Criterio
                 </div>
-                <div className="px-5 py-2 text-[8px] font-sans font-extrabold uppercase tracking-wider text-black border-l border-gray-200 text-center">
+                <div className="px-5 py-2 text-[8px] font-sans font-extrabold uppercase tracking-wider text-black border-l border-gray-300 text-center">
                   Descripción
                 </div>
-                <div className="px-5 py-2 text-[8px] font-sans font-extrabold uppercase tracking-wider text-black border-l border-gray-200 text-center">
+                <div className="px-5 py-2 text-[8px] font-sans font-extrabold uppercase tracking-wider text-black border-l border-gray-300 text-center">
                   Verificadores
                 </div>
               </div>
@@ -115,19 +115,19 @@ export default function CriteriosTable({
                   <div
                     key={criterio.id}
                     className={`grid grid-cols-[70px_calc(50%-80px)_calc(50%+10px)] hover:bg-blue-50/30 transition-colors duration-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-100/70"
-                      } ${i !== 0 ? "border-t border-gray-100" : ""}`}
+                      } ${i !== 0 ? "border-t border-gray-300" : ""}`}
                   >
                     <div className="px-5 py-3 flex items-start mt-1">
                       <span className="font-sans text-[8px] font-extrabold text-black">
                         {criterio.codigo_criterio}
                       </span>
                     </div>
-                    <div className="px-5 py-3 border-l border-gray-100 flex items-start">
+                    <div className="px-5 py-3 border-l border-gray-300 flex items-start">
                       <p className="text-[9px] font-medium text-black leading-relaxed">
                         {criterio.descripcion}
                       </p>
                     </div>
-                    <div className="px-5 py-3 border-l border-gray-100 flex items-start">
+                    <div className="px-5 py-3 border-l border-gray-300 flex items-start">
                       <ul className="text-[9px] font-medium text-black leading-relaxed space-y-2 w-full">
                         {criterio.fuente_0 && (
                           <li className="flex items-start gap-2">

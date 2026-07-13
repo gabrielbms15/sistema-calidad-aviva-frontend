@@ -43,12 +43,6 @@ export default async function AcreditacionPage() {
             </svg>
             Nueva Sede
           </button>
-          <button className="px-3.5 py-2 bg-[#1E50EF] text-white border border-transparent text-[9px] font-extrabold font-sans uppercase tracking-wider rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            Nuevo Proceso de Acreditación
-          </button>
         </div>
       </header>
 
@@ -111,10 +105,16 @@ export default async function AcreditacionPage() {
         </div>
       </div>
 
-      <div className="w-full flex flex-col items-start shrink-0 mt-4 mb-1 pl-2">
+      <div className="w-full flex items-center justify-between shrink-0 mt-4 mb-1 pl-2 pr-2">
         <h2 className="text-gray-800 text-[18px] font-black tracking-tight flex items-center gap-2">
           Procesos de acreditación activos
         </h2>
+        <button className="px-3.5 py-2 bg-[#1E50EF] text-white border border-transparent text-[9px] font-extrabold font-sans uppercase tracking-wider rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+          Nuevo Proceso de Acreditación
+        </button>
       </div>
 
       {/* Contenedor Cuadrado Grande para Procesos */}

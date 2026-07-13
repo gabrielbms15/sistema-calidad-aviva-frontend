@@ -456,13 +456,13 @@ export default function DefinirRequerimientosView({
               </div>
             ) : (
               <div className="px-6 pb-4 pt-1">
-                <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden bg-white">
+                <div className="flex flex-col border border-gray-300 rounded-xl overflow-hidden bg-white">
                   
                   {/* Table Header */}
-                  <div className="flex border-b border-gray-200 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
+                  <div className="flex border-b border-gray-300 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
                     <div className="w-[8%] shrink-0 px-2 py-2 text-center">Criterio</div>
-                    <div className="w-[46%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Descripción</div>
-                    <div className="w-[46%] shrink-0 px-3 py-2 border-l border-gray-200 text-center">Entregable</div>
+                    <div className="w-[46%] shrink-0 px-3 py-2 border-l border-gray-300 text-center">Descripción</div>
+                    <div className="w-[46%] shrink-0 px-3 py-2 border-l border-gray-300 text-center">Entregable</div>
                   </div>
 
                   {/* Rows */}
@@ -477,10 +477,10 @@ export default function DefinirRequerimientosView({
                       return (
                         <div
                           key={criterio.id}
-                          className={`flex items-stretch min-h-[68px] ${ci !== 0 ? "border-t border-gray-200" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
+                          className={`flex items-stretch min-h-[68px] ${ci !== 0 ? "border-t border-gray-300" : ""} ${ci % 2 !== 0 ? "bg-gray-100/70" : "bg-white"}`}
                         >
                           {/* Col 1 — Criterio */}
-                          <div className="w-[8%] shrink-0 border-r border-gray-100 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
+                          <div className="w-[8%] shrink-0 border-r border-gray-300 px-2 py-4 flex flex-col justify-between items-center bg-transparent">
                             <span className="font-sans text-[8px] font-extrabold text-black text-center break-all">{criterio.codigo_criterio}</span>
                             <div className="flex items-center justify-center mt-3 w-full">
                               {/* Botón + añadir entregable */}
@@ -497,7 +497,7 @@ export default function DefinirRequerimientosView({
                           </div>
 
                           {/* Col 2 — Descripción */}
-                          <div className="w-[46%] shrink-0 border-r border-gray-100 px-4 py-4 flex flex-col justify-between">
+                          <div className="w-[46%] shrink-0 border-r border-gray-300 px-4 py-4 flex flex-col justify-between">
                             <p className="text-[10px] text-black leading-relaxed font-medium">
                               {criterio.descripcion}
                             </p>
@@ -560,7 +560,7 @@ export default function DefinirRequerimientosView({
                             {entregables.map((row, idx) => (
                               <div
                                 key={idx}
-                                className={`flex items-stretch min-h-[68px] ${idx !== 0 ? "border-t border-gray-100" : ""}`}
+                                className={`flex items-stretch min-h-[68px] ${idx !== 0 ? "border-t border-gray-300" : ""}`}
                               >
                                 {/* Entregable: order number inline with textarea */}
                                 <div className="w-full shrink-0 px-2 pt-2 pb-2 flex flex-col relative">
