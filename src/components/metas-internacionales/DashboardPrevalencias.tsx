@@ -101,43 +101,85 @@ function pctLabel(value: unknown) {
   return isNaN(n) ? "" : `${n.toFixed(1)}%`;
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── SetSelector (filtro inline por meta) ─────────────────────────────────────
+
+function SetSelector({
+  sets,
+  setSeleccionado,
+  modoGlobal,
+  onSelectSet,
+}: {
+  sets: SetPreguntas[];
+  setSeleccionado: SetPreguntas | null;
+  modoGlobal: boolean;
+  onSelectSet: (set: SetPreguntas | null) => void;
+}) {
+  const currentValue = modoGlobal ? "__global__" : (setSeleccionado?.id ?? "__global__");
+
+  return (
+    <select
+      value={currentValue}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === "__global__") {
+          onSelectSet(null);
+        } else {
+          const found = sets.find((s) => s.id === val) ?? null;
+          onSelectSet(found);
+        }
+      }}
+      className="text-[8px] font-sans font-extrabold uppercase tracking-wider bg-gray-50 border border-gray-200 text-gray-600 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-manhattan-1 cursor-pointer hover:border-blue-manhattan-1/40 transition-colors"
+    >
+      <option value="__global__">Global</option>
+      {sets.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.nombre}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function ChartCard({
   title,
   subtitle,
+  filter,
   children,
   loading,
   empty,
 }: {
   title: string;
   subtitle?: string;
+  filter?: React.ReactNode;
   children: React.ReactNode;
   loading: boolean;
   empty: boolean;
 }) {
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 h-full">
-      <div>
-        <h2 className="text-base font-bold text-gray-800">{title}</h2>
-        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-3 h-full font-avenir">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-[9px] font-sans font-extrabold uppercase tracking-wider text-gray-700">{title}</h2>
+          {subtitle && <p className="text-[9px] text-gray-400 mt-0.5">{subtitle}</p>}
+        </div>
+        {filter && <div className="shrink-0">{filter}</div>}
       </div>
       {loading ? (
-        <div className="flex-1 flex items-center justify-center min-h-[220px]">
+        <div className="flex-1 flex items-center justify-center min-h-[160px]">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-[#2b3f64]/20 border-t-[#2b3f64] rounded-full animate-spin" />
-            <span className="text-xs text-gray-400">Cargando datos…</span>
+            <div className="w-6 h-6 border-2 border-[#2b3f64]/20 border-t-[#2b3f64] rounded-full animate-spin" />
+            <span className="text-[9px] text-gray-400">Cargando datos…</span>
           </div>
         </div>
       ) : empty ? (
-        <div className="flex-1 flex items-center justify-center min-h-[220px]">
+        <div className="flex-1 flex items-center justify-center min-h-[160px]">
           <div className="flex flex-col items-center gap-2 text-center">
-            <svg className="w-10 h-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-8 h-8 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <p className="text-sm text-gray-400 font-medium">Sin datos aún para este set</p>
-            <p className="text-xs text-gray-300">Los datos aparecerán cuando haya evaluaciones completadas</p>
+            <p className="text-[9px] text-gray-400 font-semibold">Sin datos aún para este set</p>
+            <p className="text-[9px] text-gray-300">Los datos aparecerán cuando haya evaluaciones completadas</p>
           </div>
         </div>
       ) : (
@@ -155,36 +197,77 @@ function CustomTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-xl px-4 py-3">
-      <p className="text-xs text-gray-500 mb-1 font-medium">{label}</p>
-      <p className="text-lg font-bold text-gray-800">{payload[0].value.toFixed(1)}%</p>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-xl px-3 py-2 font-avenir">
+      <p className="text-[9px] text-gray-500 mb-0.5 font-semibold">{label}</p>
+      <p className="text-[13px] font-extrabold text-gray-800">{payload[0].value.toFixed(1)}%</p>
     </div>
   );
 }
 
-// Custom tick para XAxis que divide el texto largo en dos líneas
+// Custom tick para XAxis con saltos de línea manuales para los Sets y fallback automático para UPSS
 function CustomXAxisTick({ x, y, payload }: any) {
-  const words = payload.value.split(" ");
-  let line1 = payload.value;
-  let line2 = "";
-  
-  if (words.length > 3) {
-    const half = Math.ceil(words.length / 2);
-    line1 = words.slice(0, half).join(" ");
-    line2 = words.slice(half).join(" ");
-  } else if (words.length === 3) {
-    line1 = words.slice(0, 2).join(" ");
-    line2 = words[2];
-  } else if (words.length === 2) {
-    line1 = words[0];
-    line2 = words[1];
+  const raw: string = payload.value ?? "";
+  const lowerRaw = raw.toLowerCase();
+
+  let lines: string[] = [];
+
+  // Mapeos específicos solicitados:
+  if (lowerRaw.includes("lavado de manos")) {
+    lines = ["Lavado", "de manos"];
+  } else if (lowerRaw.includes("administraci") && lowerRaw.includes("medicamentos")) {
+    lines = ["Administración", "segura", "de medicamentos"];
+  } else if (lowerRaw.includes("identificaci") && lowerRaw.includes("paciente")) {
+    lines = ["Identificación", "del paciente"];
+  } else if (lowerRaw.includes("caídas") || lowerRaw.includes("caidas")) {
+    lines = ["Prevención de", "riesgo de caídas"];
+  } else if (lowerRaw.includes("presión") || lowerRaw.includes("presion") || lowerRaw.includes("ulceras") || lowerRaw.includes("úlceras")) {
+    lines = ["Prevención de", "úlceras por presión"];
+  } else if (lowerRaw.includes("comunicaci") && lowerRaw.includes("segura")) {
+    lines = ["Comunicación", "Segura"];
+  } else {
+    // Fallback genérico: sentence case + split
+    const sentence = raw.length > 0 ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : raw;
+    const words = sentence.split(" ");
+    if (words.length > 3) {
+      const half = Math.ceil(words.length / 2);
+      lines = [words.slice(0, half).join(" "), words.slice(half).join(" ")];
+    } else if (words.length === 3) {
+      lines = [words.slice(0, 2).join(" "), words[2]];
+    } else if (words.length === 2) {
+      lines = [words[0], words[1]];
+    } else {
+      lines = [sentence];
+    }
   }
 
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={12} textAnchor="middle" fill="#6b7280" fontSize={11}>
-        <tspan x={0} dy="0">{line1}</tspan>
-        {line2 && <tspan x={0} dy="16">{line2}</tspan>}
+      <text x={0} y={0} dy={10} textAnchor="middle" fill="#111827" fontSize={8.5}>
+        {lines.map((line, idx) => (
+          <tspan x={0} dy={idx === 0 ? 0 : 11} key={idx}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
+// Custom tick para YAxis (horizontal bars) — sentence case, negro
+function CustomYAxisTick({ x, y, payload }: any) {
+  const raw: string = payload.value ?? "";
+  const sentence = raw.length > 0 ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : raw;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-4}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fill="#111827"
+        fontSize={8.5}
+      >
+        {sentence}
       </text>
     </g>
   );
@@ -198,10 +281,10 @@ function CustomPieTooltip({ active, payload, unit = "sets" }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-xl px-4 py-3">
-      <p className="text-xs text-gray-500 mb-1 font-medium">{payload[0].name}</p>
-      <p className="text-lg font-bold text-[#2b3f64]">
-        {payload[0].value} <span className="text-sm font-normal text-gray-500">{unit}</span>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-xl px-3 py-2 font-avenir">
+      <p className="text-[9px] text-gray-500 mb-0.5 font-semibold">{payload[0].name}</p>
+      <p className="text-[13px] font-extrabold text-[#2b3f64]">
+        {payload[0].value} <span className="text-[9px] font-normal text-gray-500">{unit}</span>
       </p>
     </div>
   );
@@ -242,9 +325,9 @@ export default function DashboardPrevalencias({
       getEvaluacionesPorEvaluador(proceso.id),
       getDistribucionEvaluacionesPorSet(proceso.id),
     ]);
-    
+
     setDataGlobal((resGlobal.data ?? []).sort(
-      (a: CumplimientoGlobalSet, b: CumplimientoGlobalSet) => a.set_orden - b.set_orden
+      (a: CumplimientoGlobalSet, b: CumplimientoGlobalSet) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento
     ));
     setDataEvaluadores(resEvaluadores.data ?? []);
     setDataDistribucion(resDistribucion.data ?? []);
@@ -279,8 +362,12 @@ export default function DashboardPrevalencias({
       return { ...item, upss: nombre };
     });
 
-    setDataUpss(formattedUpss);
-    setDataGrupo(resGrupo.data ?? []);
+    setDataUpss(
+      [...formattedUpss].sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento)
+    );
+    setDataGrupo(
+      [...(resGrupo.data ?? [])].sort((a: any, b: any) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento)
+    );
     setDataFallas(resFallas.data ?? []);
     setLoadingBySet(false);
   }, [proceso]);
@@ -372,15 +459,15 @@ export default function DashboardPrevalencias({
   // Sin proceso activo
   if (!proceso) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
-          <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center gap-4 font-avenir">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center">
+          <svg className="w-7 h-7 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
-        <h2 className="text-lg font-bold text-gray-700">No hay proceso activo</h2>
-        <p className="text-sm text-gray-400 max-w-sm">
+        <h2 className="text-[14px] font-bold text-gray-700">No hay proceso activo</h2>
+        <p className="text-[11px] text-gray-400 max-w-sm leading-relaxed">
           No se encontró ningún proceso de prevalencia con estado <strong>activo</strong>.
           Crea o activa un proceso desde el panel de administración para visualizar los datos.
         </p>
@@ -389,105 +476,68 @@ export default function DashboardPrevalencias({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 font-avenir">
       {/* Proceso info banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-[#2b3f64]/5 border border-[#2b3f64]/10 rounded-2xl px-5 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-sm font-semibold text-[#2b3f64]">{proceso.nombre}</span>
-          <span className="text-xs text-gray-400">·</span>
-          <span className="text-xs text-gray-500">{proceso.sede?.nombre}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#2b3f64]/5 border border-[#2b3f64]/10 rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[10px] font-sans font-extrabold text-[#2b3f64]">{proceso.nombre}</span>
+          <span className="text-gray-300 text-[10px]">·</span>
+          <span className="text-[10px] text-gray-500">{proceso.sede?.nombre}</span>
         </div>
-        <span className="text-xs text-gray-400">
-          {new Date(proceso.fecha).toLocaleDateString("es-PE", {
-            day: "numeric", month: "long", year: "numeric"
-          })}
-        </span>
-      </div>
-
-      {/* Selector de set */}
-      <div className="flex flex-wrap gap-2">
-        {/* Botón Global */}
-        <button
-          onClick={() => {
-            setSetSeleccionado(null);
-            cargarDatosGlobal();
-          }}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-            modoGlobal
-              ? "bg-[#2b3f64] text-white shadow-md shadow-[#2b3f64]/20"
-              : "bg-white text-gray-600 border border-gray-200 hover:border-[#2b3f64]/30 hover:text-[#2b3f64]"
-          }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Global
-        </button>
-        {sets.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setSetSeleccionado(s)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-              !modoGlobal && setSeleccionado?.id === s.id
-                ? "bg-[#2b3f64] text-white shadow-md shadow-[#2b3f64]/20"
-                : "bg-white text-gray-600 border border-gray-200 hover:border-[#2b3f64]/30 hover:text-[#2b3f64]"
-            }`}
-          >
-            {s.nombre}
-          </button>
-        ))}
+        <div className="flex items-center gap-4">
+          <SetSelector sets={sets} setSeleccionado={setSeleccionado} modoGlobal={modoGlobal} onSelectSet={(s) => { setSetSeleccionado(s); if (s) cargarDatosPorSet(s.id); else cargarDatosGlobal(); }} />
+          <span className="text-[9px] text-gray-400 hidden sm:inline-block">
+            {new Date(proceso.fecha).toLocaleDateString("es-PE", {
+              day: "numeric", month: "long", year: "numeric"
+            })}
+          </span>
+        </div>
       </div>
 
       {/* Fila 1: Gráficas 1 y 3 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
         {/* Gráfica 1 — Cumplimiento por UPSS */}
         <ChartCard
           title="Cumplimiento por UPSS"
-          subtitle={modoGlobal ? "Global — porcentaje ponderado de todas las metas" : setSeleccionado?.nombre}
           loading={loadingBySet}
           empty={!loadingBySet && dataUpss.length === 0}
         >
-          <ResponsiveContainer width="100%" height={420}>
+          <ResponsiveContainer width="100%" height={190}>
             <BarChart
               data={dataUpss}
-              layout="vertical"
-              margin={{ top: 4, right: 110, left: 4, bottom: 4 }}
+              layout="horizontal"
+              margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
             >
-              <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
+                dataKey="upss"
+                tick={<CustomXAxisTick />}
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+                height={34}
+                tickMargin={6}
+              />
+              <YAxis
                 type="number"
                 domain={[0, 100]}
                 tickFormatter={(v) => `${v}%`}
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                tick={{ fontSize: 8, fill: "#9ca3af" }}
                 axisLine={false}
                 tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="upss"
-                width={130}
-                tick={{ fontSize: 11, fill: "#6b7280" }}
-                axisLine={false}
-                tickLine={false}
+                width={28}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
-              <Bar dataKey="porcentaje_cumplimiento" radius={[0, 6, 6, 0]} maxBarSize={18}>
+              <Bar dataKey="porcentaje_cumplimiento" radius={[4, 4, 0, 0]} maxBarSize={24}>
                 {dataUpss.map((entry, i) => (
                   <Cell key={i} fill={colorForValue(entry.porcentaje_cumplimiento)} />
                 ))}
                 <LabelList
-                  content={(props: any) => {
-                    const { x, y, width, height, index } = props;
-                    const item = dataUpss[index];
-                    if (!item || item.porcentaje_cumplimiento == null) return null;
-                    return (
-                      <text x={Number(x) + Number(width) + 8} y={Number(y) + Number(height) / 2 + 4} fill="#374151" fontSize={11} fontWeight={600}>
-                        {item.porcentaje_cumplimiento.toFixed(1)}% <tspan fill="#9ca3af" fontSize={10} fontWeight={500}>(n = {item.total_evaluados || 0})</tspan>
-                      </text>
-                    );
-                  }}
+                  dataKey="porcentaje_cumplimiento"
+                  position="top"
+                  formatter={pctLabel}
+                  style={{ fontSize: 7.5, fontWeight: 700, fill: "#374151" }}
                 />
               </Bar>
             </BarChart>
@@ -497,35 +547,35 @@ export default function DashboardPrevalencias({
         {/* Gráfica 3 — Cumplimiento por grupo profesional */}
         <ChartCard
           title="Cumplimiento por Grupo Profesional"
-          subtitle={modoGlobal ? "Global — porcentaje ponderado de todas las metas" : setSeleccionado?.nombre}
           loading={loadingBySet}
           empty={!loadingBySet && dataGrupo.length === 0}
         >
-          <ResponsiveContainer width="100%" height={420}>
+          <ResponsiveContainer width="100%" height={206}>
             <BarChart
               data={dataGrupo}
               layout="vertical"
-              margin={{ top: 4, right: 110, left: 4, bottom: 4 }}
+              margin={{ top: 4, right: 80, left: 4, bottom: 4 }}
             >
               <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
                 type="number"
                 domain={[0, 100]}
                 tickFormatter={(v) => `${v}%`}
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
+                tick={{ fontSize: 8, fill: "#9ca3af" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 type="category"
                 dataKey="grupo_profesional"
-                width={130}
-                tick={{ fontSize: 11, fill: "#6b7280" }}
+                width={100}
+                tick={<CustomYAxisTick />}
                 axisLine={false}
                 tickLine={false}
+                interval={0}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
-              <Bar dataKey="porcentaje_cumplimiento" radius={[0, 6, 6, 0]} maxBarSize={18}>
+              <Bar dataKey="porcentaje_cumplimiento" radius={[0, 4, 4, 0]} maxBarSize={10}>
                 {dataGrupo.map((entry, i) => (
                   <Cell key={i} fill={colorForValue(entry.porcentaje_cumplimiento)} />
                 ))}
@@ -535,8 +585,8 @@ export default function DashboardPrevalencias({
                     const item = dataGrupo[index];
                     if (!item || item.porcentaje_cumplimiento == null) return null;
                     return (
-                      <text x={Number(x) + Number(width) + 8} y={Number(y) + Number(height) / 2 + 4} fill="#374151" fontSize={11} fontWeight={600}>
-                        {item.porcentaje_cumplimiento.toFixed(1)}% <tspan fill="#9ca3af" fontSize={10} fontWeight={500}>(n = {item.total_evaluados || 0})</tspan>
+                      <text x={Number(x) + Number(width) + 5} y={Number(y) + Number(height) / 2 + 3.5} fill="#374151" fontSize={8} fontWeight={600}>
+                        {item.porcentaje_cumplimiento.toFixed(1)}% <tspan fill="#9ca3af" fontSize={7.5} fontWeight={500}>(n={item.total_evaluados || 0})</tspan>
                       </text>
                     );
                   }}
@@ -547,21 +597,20 @@ export default function DashboardPrevalencias({
         </ChartCard>
       </div>
 
-      {/* Fila 2: Gráfica 2 (Global por Set) y Gráfica 4 (Evaluaciones por Evaluador) */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+      {/* Fila 2: Gráficas 2, 4 y 5 */}
+      <div className="grid grid-cols-1 lg:grid-cols-[50fr_23fr_27fr] gap-6">
         {/* Gráfica 2 — Cumplimiento global por set */}
-        <div className="lg:col-span-7">
+        <div>
           <ChartCard
             title="Cumplimiento Global por Set"
-            subtitle="Todos los sets del proceso — actualización única al cargar"
             loading={loadingGlobal}
             empty={!loadingGlobal && dataGlobal.length === 0}
           >
-            <div className="flex-1 w-full min-h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="flex-1 w-full min-h-[206px]">
+              <ResponsiveContainer width="100%" height={206}>
                 <BarChart
                   data={dataGlobal}
-                  margin={{ top: 16, right: 24, left: 0, bottom: 0 }}
+                  margin={{ top: 14, right: 16, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis
@@ -570,19 +619,19 @@ export default function DashboardPrevalencias({
                     axisLine={false}
                     tickLine={false}
                     interval={0}
-                    height={45}
-                    tickMargin={16}
+                    height={46}
+                    tickMargin={6}
                   />
                   <YAxis
                     domain={[0, 100]}
                     tickFormatter={(v) => `${v}%`}
-                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    tick={{ fontSize: 8, fill: "#9ca3af" }}
                     axisLine={false}
                     tickLine={false}
-                    width={44}
+                    width={36}
                   />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
-                  <Bar dataKey="porcentaje_cumplimiento" radius={[6, 6, 0, 0]} maxBarSize={52}>
+                  <Bar dataKey="porcentaje_cumplimiento" radius={[4, 4, 0, 0]} maxBarSize={36}>
                     {dataGlobal.map((entry, i) => (
                       <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                     ))}
@@ -590,7 +639,7 @@ export default function DashboardPrevalencias({
                       dataKey="porcentaje_cumplimiento"
                       position="top"
                       formatter={pctLabel}
-                      style={{ fontSize: 11, fontWeight: 700, fill: "#374151" }}
+                      style={{ fontSize: 7.5, fontWeight: 700, fill: "#374151" }}
                     />
                   </Bar>
                 </BarChart>
@@ -600,63 +649,152 @@ export default function DashboardPrevalencias({
         </div>
 
         {/* Gráfica 4 — Evaluaciones por Evaluador */}
-        <div className="lg:col-span-3 flex flex-col">
+        <div className="flex flex-col">
           <ChartCard
             title="Participación de Evaluadores"
-            subtitle="Sets completados por evaluador en este proceso"
             loading={loadingGlobal}
             empty={!loadingGlobal && dataEvaluadores.length === 0}
           >
-            <div className="flex-1 w-full min-h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="flex-1 w-full">
+              <ResponsiveContainer width="100%" height={206}>
                 <PieChart>
                   <Pie
-                  data={dataEvaluadores}
-                  dataKey="total_evaluaciones"
-                  nameKey="evaluador_nombre"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={110}
-                  paddingAngle={5}
-                >
-                  {dataEvaluadores.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomPieTooltip />} />
+                    data={dataEvaluadores}
+                    dataKey="total_evaluaciones"
+                    nameKey="evaluador_nombre"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={20}
+                    outerRadius={45}
+                    paddingAngle={4}
+                    labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
+                    label={(p: any) => {
+                      const RADIAN = Math.PI / 180;
+                      // Número dentro
+                      const insideRadius = p.innerRadius + (p.outerRadius - p.innerRadius) / 2;
+                      const insideX = p.cx + insideRadius * Math.cos(-p.midAngle * RADIAN);
+                      const insideY = p.cy + insideRadius * Math.sin(-p.midAngle * RADIAN);
+
+                      // Texto fuera
+                      const outsideRadius = p.outerRadius + 12;
+                      const outsideX = p.cx + outsideRadius * Math.cos(-p.midAngle * RADIAN);
+                      const outsideY = p.cy + outsideRadius * Math.sin(-p.midAngle * RADIAN);
+
+                      const words = String(p.name).split(' ');
+                      let firstLine = p.name;
+                      let secondLine = '';
+                      if (words.length > 1) {
+                        const mid = Math.ceil(words.length / 2);
+                        firstLine = words.slice(0, mid).join(' ');
+                        secondLine = words.slice(mid).join(' ');
+                      }
+
+                      return (
+                        <g>
+                          <text x={insideX} y={insideY} fill="#ffffff" textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={800}>
+                            {p.value}
+                          </text>
+                          <text x={outsideX} y={outsideY} fill="#111827" textAnchor={outsideX > p.cx ? 'start' : 'end'} dominantBaseline="central" fontSize={7.5} fontWeight={500}>
+                            {secondLine ? (
+                              <>
+                                <tspan x={outsideX} dy="-4">{firstLine}</tspan>
+                                <tspan x={outsideX} dy="10">{secondLine}</tspan>
+                              </>
+                            ) : (
+                              <tspan x={outsideX} dy="0">{firstLine}</tspan>
+                            )}
+                          </text>
+                        </g>
+                      );
+                    }}
+                  >
+                    {dataEvaluadores.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomPieTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            {/* Custom Legend */}
-            <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2">
-              {dataEvaluadores.map((entry, index) => (
-                <div key={index} className="flex items-center gap-1.5">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
-                  />
-                  <span className="text-[11px] font-medium text-gray-600">
-                    {entry.evaluador_nombre} ({entry.total_evaluaciones})
-                  </span>
-                </div>
-              ))}
+          </ChartCard>
+        </div>
+
+        {/* Gráfica 5 — Distribución de Evaluaciones */}
+        <div className="flex flex-col">
+          <ChartCard
+            title="Distribución de Evaluaciones"
+            loading={loadingGlobal}
+            empty={!loadingGlobal && dataDistribucion.length === 0}
+          >
+            <div className="flex-1 w-full flex flex-col">
+              <ResponsiveContainer width="100%" height={206}>
+                <PieChart>
+                  <Pie
+                    data={dataDistribucion}
+                    dataKey="total"
+                    nameKey="set_nombre"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={20}
+                    outerRadius={45}
+                    paddingAngle={4}
+                    labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
+                    label={(p: any) => {
+                      const RADIAN = Math.PI / 180;
+                      // Número dentro
+                      const insideRadius = p.innerRadius + (p.outerRadius - p.innerRadius) / 2;
+                      const insideX = p.cx + insideRadius * Math.cos(-p.midAngle * RADIAN);
+                      const insideY = p.cy + insideRadius * Math.sin(-p.midAngle * RADIAN);
+
+                      // Texto fuera
+                      const outsideRadius = p.outerRadius + 12;
+                      const outsideX = p.cx + outsideRadius * Math.cos(-p.midAngle * RADIAN);
+                      const outsideY = p.cy + outsideRadius * Math.sin(-p.midAngle * RADIAN);
+
+                      const words = String(p.name).split(' ');
+                      let firstLine = p.name;
+                      let secondLine = '';
+                      if (words.length > 1) {
+                        const mid = Math.ceil(words.length / 2);
+                        firstLine = words.slice(0, mid).join(' ');
+                        secondLine = words.slice(mid).join(' ');
+                      }
+
+                      return (
+                        <g>
+                          <text x={insideX} y={insideY} fill="#ffffff" textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={800}>
+                            {p.value}
+                          </text>
+                          <text x={outsideX} y={outsideY} fill="#111827" textAnchor={outsideX > p.cx ? 'start' : 'end'} dominantBaseline="central" fontSize={7.5} fontWeight={500}>
+                            {secondLine ? (
+                              <>
+                                <tspan x={outsideX} dy="-4">{firstLine}</tspan>
+                                <tspan x={outsideX} dy="10">{secondLine}</tspan>
+                              </>
+                            ) : (
+                              <tspan x={outsideX} dy="0">{firstLine}</tspan>
+                            )}
+                          </text>
+                        </g>
+                      );
+                    }}
+                  >
+                    {dataDistribucion.map((entry, index) => (
+                      <Cell key={`cell-dist-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomPieTooltip unit="evaluaciones" />} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </ChartCard>
         </div>
       </div>
 
-      {/* Fila 3: Preguntas con mayor falla y Distribución de Evaluaciones */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Fila 3: Preguntas con mayor falla */}
+      <div className="grid grid-cols-1 gap-6">
         <ChartCard
           title="Preguntas con Mayor Tasa de Fallo"
-          subtitle={
-            modoGlobal
-              ? "Selecciona una meta específica para ver este análisis"
-              : setSeleccionado
-              ? `${setSeleccionado.nombre} — ordenadas de mayor a menor falla`
-              : undefined
-          }
           loading={!modoGlobal && loadingBySet}
           empty={!modoGlobal && !loadingBySet && dataFallas.length === 0}
         >
@@ -673,23 +811,23 @@ export default function DashboardPrevalencias({
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {fallasVisibles.filter(f => f.porcentaje_no != null).map((falla, i) => (
-                <div key={falla.pregunta_id} className="flex items-start gap-4 group">
+                <div key={falla.pregunta_id} className="flex items-start gap-3 group">
                   {/* Rank badge */}
                   <div
-                    className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold mt-0.5"
+                    className="w-5 h-5 shrink-0 rounded-md flex items-center justify-center text-[8px] font-extrabold mt-0.5"
                     style={{ backgroundColor: `${BRAND}10`, color: BRAND }}
                   >
                     {i + 1}
                   </div>
                   {/* Bar + texto */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 font-medium leading-snug mb-1.5 line-clamp-2">
+                    <p className="text-[9px] text-gray-700 font-medium leading-snug mb-1 line-clamp-2">
                       {falla.texto}
                     </p>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{
@@ -699,7 +837,7 @@ export default function DashboardPrevalencias({
                         />
                       </div>
                       <span
-                        className="text-sm font-bold shrink-0 w-14 text-right"
+                        className="text-[9px] font-bold shrink-0 w-12 text-right"
                         style={{ color: colorForValue(100 - falla.porcentaje_no) }}
                       >
                         {falla.porcentaje_no.toFixed(1)}% NO
@@ -713,19 +851,19 @@ export default function DashboardPrevalencias({
               {dataFallas.length > 5 && (
                 <button
                   onClick={() => setMostrarTodasFallas((v) => !v)}
-                  className="mt-2 self-start text-xs font-semibold text-[#2b3f64] hover:text-[#1e2d4a] flex items-center gap-1 transition-colors"
+                  className="mt-1 self-start text-[9px] font-sans font-extrabold uppercase tracking-wider text-blue-manhattan-1 hover:text-[#02163A]/70 flex items-center gap-1 transition-colors"
                 >
                   {mostrarTodasFallas ? (
                     <>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
                       </svg>
                       Ver menos
                     </>
                   ) : (
                     <>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                       </svg>
                       Ver todas ({dataFallas.length} preguntas)
                     </>
@@ -734,54 +872,6 @@ export default function DashboardPrevalencias({
               )}
             </div>
           )}
-        </ChartCard>
-
-        {/* Gráfica 5 — Distribución de Evaluaciones */}
-        <ChartCard
-          title="Distribución de Evaluaciones"
-          subtitle="Evaluaciones completadas por proceso"
-          loading={loadingGlobal}
-          empty={!loadingGlobal && dataDistribucion.length === 0}
-        >
-          <div className="flex-1 w-full min-h-[300px] flex flex-col">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={dataDistribucion}
-                  dataKey="total"
-                  nameKey="set_nombre"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={110}
-                  paddingAngle={5}
-                >
-                  {dataDistribucion.map((entry, index) => (
-                    <Cell key={`cell-dist-${index}`} fill={PALETTE[index % PALETTE.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomPieTooltip unit="evaluaciones" />} />
-              </PieChart>
-            </ResponsiveContainer>
-            
-            {/* Custom Legend */}
-            <div className="mt-4 flex flex-col gap-2">
-              {dataDistribucion.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
-                  />
-                  <span className="text-xs font-medium text-gray-700 flex-1 truncate" title={entry.set_nombre}>
-                    {entry.set_nombre}
-                  </span>
-                  <span className="text-xs font-bold text-gray-900 shrink-0">
-                    {entry.total}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
         </ChartCard>
       </div>
     </div>

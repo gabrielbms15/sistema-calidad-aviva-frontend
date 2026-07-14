@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export const metadata: Metadata = {
@@ -8,22 +9,24 @@ export const metadata: Metadata = {
     "Selecciona una sede para visualizar el dashboard de Metas Internacionales de Seguridad del Paciente.",
 };
 
-// Íconos decorativos distintos por sede para distinguirlas visualmente
-const SEDE_META: Record<string, { gradient: string; icon: string; tag: string }> = {
+const SEDE_META: Record<
+  string,
+  { image: string; tag: string; accentColor: string }
+> = {
   "Lima Centro": {
-    gradient: "from-[#2b3f64] to-[#3d5a9a]",
-    icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    image: "/LimaCentro_qps.webp",
     tag: "Sede Central",
+    accentColor: "#1E50EF",
   },
   "Los Olivos": {
-    gradient: "from-[#1a4d3a] to-[#2d7a5f]",
-    icon: "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    image: "/LosOlivos_qps.webp",
     tag: "Sede Norte",
+    accentColor: "#32CEBB",
   },
   "San Martin de Porres": {
-    gradient: "from-[#5c2d7a] to-[#8b4db8]",
-    icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
+    image: "/SanMartin_qps.webp",
     tag: "Sede Norte 2",
+    accentColor: "#02163A",
   },
 };
 
@@ -35,130 +38,115 @@ export default async function MetasInternacionalesPage() {
     .select("id, nombre")
     .in("nombre", SEDE_NOMBRES_PRIORITY);
 
-  // Ordenar según el orden predefinido
   const sedesOrdenadas = SEDE_NOMBRES_PRIORITY
     .map((nombre) => sedes?.find((s) => s.nombre === nombre))
     .filter(Boolean) as { id: string; nombre: string }[];
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Header */}
-      <header>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-2xl bg-[#2b3f64] flex items-center justify-center shadow-sm">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-800 leading-tight">
-              Metas Internacionales de Seguridad del Paciente
+    <div className="flex flex-col h-full font-avenir gap-6">
+      {/* Cabecera — estilo idéntico a /acreditacion */}
+      <header className="w-full flex items-end justify-between shrink-0">
+        <div className="flex items-center gap-3.5">
+          <span className="text-4xl leading-none drop-shadow-sm">🌐</span>
+          <div className="flex flex-col justify-center">
+            <h1 className="text-gray-900 font-sans text-[20px] font-bold tracking-tight leading-none">
+              Prácticas Organizacionales Requeridas
             </h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Calidad y Seguridad del Paciente (QPS) — Selecciona una sede para ver el dashboard
+            <p className="text-gray-500 text-[12px] mt-1.5 leading-snug max-w-2xl">
+              Calidad y Seguridad del Paciente (QPS) — Selecciona una sede para ver el dashboard de prevalencias.
             </p>
           </div>
         </div>
       </header>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl px-5 py-3">
+        <div className="bg-red-50 border border-red-200 text-red-600 text-[11px] font-sans rounded-2xl px-5 py-3">
           Error al cargar las sedes. Intenta recargar la página.
         </div>
       )}
 
-      {/* Sede cards */}
+      {/* Sección de cards */}
       <div>
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-5 px-1">
-          Selecciona una sede
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[8px] font-sans font-extrabold uppercase tracking-wider text-gray-400">
+            Selecciona una sede
+          </h2>
+          <span className="text-[9px] font-sans text-gray-400">
+            {sedesOrdenadas.length} sede{sedesOrdenadas.length !== 1 ? "s" : ""} disponible{sedesOrdenadas.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {sedesOrdenadas.map((sede) => {
             const meta = SEDE_META[sede.nombre] ?? {
-              gradient: "from-[#2b3f64] to-[#3d5a9a]",
-              icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5",
+              image: "/LimaCentro_qps.webp",
               tag: "Sede",
+              accentColor: "#1E50EF",
             };
 
             return (
               <Link
                 key={sede.id}
                 href={`/metas-internacionales/${sede.id}`}
-                className="group relative flex flex-col overflow-hidden rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1.5 border border-white/10"
+                className="group relative flex flex-col overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 border border-gray-100"
               >
-                {/* Gradient header */}
-                <div
-                  className={`bg-gradient-to-br ${meta.gradient} p-8 flex flex-col gap-4 relative overflow-hidden`}
-                >
-                  {/* Decorative circles */}
-                  <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/5 group-hover:scale-125 transition-transform duration-500" />
-                  <div className="absolute -right-2 -bottom-8 w-20 h-20 rounded-full bg-white/5 group-hover:scale-150 transition-transform duration-700" />
+                {/* Imagen de sede con overlay */}
+                <div className="relative h-52 overflow-hidden">
+                  <Image
+                    src={meta.image}
+                    alt={`Sede ${sede.nombre}`}
+                    fill
+                    className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                  />
+                  {/* Overlay gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-                  {/* Icon */}
-                  <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center backdrop-blur-sm relative z-10 group-hover:bg-white/25 transition-colors duration-300">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-7 w-7 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.75}
-                        d={meta.icon}
-                      />
-                    </svg>
-                  </div>
-
-                  {/* Tag */}
-                  <span className="relative z-10 self-start text-[10px] font-bold uppercase tracking-widest text-white/60 bg-white/10 px-2.5 py-1 rounded-full">
+                  {/* Tag badge */}
+                  <span
+                    className="absolute top-3 left-3 text-[8px] font-sans font-extrabold uppercase tracking-widest text-white px-2.5 py-1 rounded-full backdrop-blur-sm"
+                    style={{ backgroundColor: `${meta.accentColor}CC` }}
+                  >
                     {meta.tag}
                   </span>
-                </div>
 
-                {/* Card body */}
-                <div className="bg-white flex-1 px-7 py-5 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800 group-hover:text-[#2b3f64] transition-colors duration-200">
-                      {sede.nombre}
-                    </h3>
-                    <p className="text-xs text-gray-400 mt-0.5">Ver dashboard de prevalencias</p>
-                  </div>
-                  <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-[#2b3f64] group-hover:text-white text-gray-400 transition-all duration-300 shrink-0">
+                  {/* Arrow button top-right */}
+                  <div
+                    className="absolute top-3 right-3 w-8 h-8 rounded-xl flex items-center justify-center backdrop-blur-sm bg-white/15 group-hover:bg-white/30 transition-colors duration-300"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
+                      className="h-3.5 w-3.5 text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
+
+                  {/* Nombre de sede sobre la imagen */}
+                  <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+                    <h3 className="text-white font-sans font-extrabold text-[15px] leading-tight drop-shadow-sm">
+                      {sede.nombre}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Card footer — glassmorphism / minimal */}
+                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-100">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-sans font-extrabold uppercase tracking-wider text-gray-400">
+                      Dashboard de prevalencias
+                    </span>
+                    <span className="text-[10px] font-sans font-semibold text-gray-700">
+                      Ver indicadores QPS →
+                    </span>
+                  </div>
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: meta.accentColor }}
+                  />
                 </div>
               </Link>
             );
