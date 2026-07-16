@@ -27,6 +27,26 @@
   --color-teal-aviva-1: #32CEBB;
 }
 
+:root {
+
+  --color-p1-primary-teal: #097A88;
+  --color-p1-accent-aqua: #00CCC2;
+  --color-p1-primary-blue: #385A7C;
+  --color-p1-light-blue: #B4C7E7;
+  --color-p1-sky-blue: #9EBBF4;
+  --color-p1-mint: #8AD6CC;
+
+  --color-p2-ocean-teal-400: #297283;
+  --color-p2-ocean-teal-300: #56B4CA;
+  --color-p2-ocean-teal-200: #C2E4EC;
+  --color-p2-ocean-teal-100: #F99192;
+
+  --color-p3-ocean-blue-400: #002060;
+  --color-p3-ocean-blue-300: #2F5D99;
+  --color-p3-ocean-blue-200: #79A4CF;
+  --color-p3-ocean-blue-100: #C9DEF3;
+}
+
 @layer base {
   body {
     background-color: #FCFAFA !important;

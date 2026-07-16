@@ -31,19 +31,11 @@ interface Props {
 
 /* ─── Constants ──────────────────────────────────────────── */
 const EXCLUDED_CRITERIOS = new Set([
-  "DIR1-4","DIR1-5","DIR1-6","DIR1-8","GRH4-1","MRA8-1","MRA8-2","MRA8-3",
-  "ATA1-3","ATA3-2","ATA3-3","ATA3-4","ATA3-5","ATA3-6","RCR4-1","RCR4-2",
-  "RCR4-3","GMD3-4","GMD3-5","MRS1-1","MRS1-2","MRS1-3","MRS2-1","MRS2-2", "ATH6-1", "ATH6-2",
+  "DIR1-4", "DIR1-5", "DIR1-6", "DIR1-8", "GRH4-1", "MRA8-1", "MRA8-2", "MRA8-3",
+  "ATA1-3", "ATA3-2", "ATA3-3", "ATA3-4", "ATA3-5", "ATA3-6", "RCR4-1", "RCR4-2",
+  "RCR4-3", "GMD3-4", "GMD3-5", "MRS1-1", "MRS1-2", "MRS1-3", "MRS2-1", "MRS2-2", "ATH6-1", "ATH6-2",
 ]);
 const EXCLUDED_MACROS = new Set([8, 12]);
-
-// Cell background color based on puntaje
-const CELL_BG: Record<string, string> = {
-  "null": "",
-  "0":    "bg-red-50",
-  "1":    "bg-amber-50",
-  "2":    "bg-green-50",
-};
 
 /* ─── Helpers ────────────────────────────────────────────── */
 function extractCriterio(c: any, procesoId: string): CriterioData {
@@ -84,6 +76,21 @@ export default function AutoevaluacionView({ proceso, macroprocesos, macroproces
   autoMapRef.current = autoMap;
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Popover for descripción
+  const [activePopover, setActivePopover] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setActivePopover(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   /* ─── State helpers — always use prev ─── */
   const getAuto = (criterioId: string) => autoMap[criterioId] ?? emptyRow(criterioId);
@@ -126,7 +133,7 @@ export default function AutoevaluacionView({ proceso, macroprocesos, macroproces
         .map(c => c.id);
       loadAutos(ids);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ─── Macroproceso click ─── */
@@ -208,241 +215,341 @@ export default function AutoevaluacionView({ proceso, macroprocesos, macroproces
 
   /* ─── Render ─────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col h-full items-center justify-center font-sans">
-      <div className="w-full mb-6 flex flex-col items-start gap-4">
-        <div>
-          <h1 className="text-gray-900 text-3xl font-extrabold leading-snug drop-shadow-sm">Autoevaluaciones</h1>
-          <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
-            <span className="bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded">Sede {proceso.sede.nombre}</span>
-            <span>·</span>
-            <span>Proceso de Acreditación {proceso.anio}</span>
-          </p>
+    <div className="flex flex-col h-full font-avenir gap-4">
+
+      {/* ─── Encabezado y Filtros ─── */}
+      <div className="w-[95%] flex flex-col gap-4">
+        {/* Título */}
+        <div className="w-full flex items-center justify-between shrink-0 pl-2">
+          <div className="flex items-center gap-3">
+            <span className="text-xl leading-none drop-shadow-sm">📋</span>
+            <h1 className="text-gray-900 font-sans text-[20px] font-bold tracking-tight leading-none">
+              Autoevaluación
+            </h1>
+          </div>
+          <Link
+            href={`/acreditacion/${proceso.id}`}
+            className="inline-flex items-center gap-1.5 text-gray-500 hover:text-[#1E50EF] text-[11px] font-bold tracking-wide uppercase transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver
+          </Link>
         </div>
+
       </div>
 
-      <div className="w-full flex flex-col h-[80vh] min-h-[500px] bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
-        {/* Header */}
-        <div className="bg-[#272729] border-b border-white/10 flex flex-col shrink-0">
-          <div className="px-8 py-4 flex items-center justify-between">
-            <h2 className="text-white text-lg leading-tight">
+      {/* ─── Contenido Principal (Sidebar + Tabla) ─── */}
+      <div className="flex-1 min-h-0 grid grid-cols-[22.5%_1fr] gap-4 overflow-hidden w-[95%]">
+
+        {/* Sidebar de Macroprocesos */}
+        <aside className="col-span-1 bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden border border-gray-200 relative">
+          <div className="px-4 pt-4 pb-2 flex items-center gap-2 border-b border-gray-100 mb-2 shrink-0 bg-teal-aviva-1/40">
+            <svg className="w-3.5 h-3.5 text-blue-manhattan-1 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span className="font-sans font-extrabold text-blue-manhattan-1 text-[9px] uppercase tracking-wider">
+              Macroprocesos
+            </span>
+          </div>
+
+          <OverlayScrollbarsComponent
+            element="nav"
+            options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-dark" } }}
+            defer
+            className="flex-1 py-1 px-3"
+          >
+            {macroprocesos.filter(m => !EXCLUDED_MACROS.has(m.orden)).map((macro) => {
+              const isActive = macro.id === selectedMacroId;
+              return (
+                <button
+                  key={macro.id}
+                  onClick={() => handleMacroClick(macro)}
+                  disabled={isPending}
+                  className={`w-full text-left flex flex-row items-stretch gap-3 px-3 py-2 rounded-xl mb-1.5 transition-all duration-200 group ${isActive
+                    ? "border border-[#DEEBF7] shadow-md bg-[#DEEBF7] text-[#02163a] scale-[1.02]"
+                    : "text-black/60 hover:text-black hover:bg-black/5"
+                    }`}
+                >
+                  <div
+                    className={`flex items-center justify-center shrink-0 w-8 rounded-lg text-[9px] font-extrabold transition-colors duration-200 shadow-sm ${isActive
+                      ? "bg-[#1E50EF] text-white"
+                      : "bg-gray-200 text-gray-900"
+                      }`}
+                  >
+                    {macro.orden}
+                  </div>
+                  <div className="flex flex-col justify-center min-w-0">
+                    <span className={`font-bold text-[9px] tracking-wide mb-0.5 truncate ${isActive ? "text-[#02163a] font-extrabold" : "text-black/90 group-hover:text-black"}`}>
+                      {macro.codigo}
+                    </span>
+                    <span className={`text-[7px] leading-snug line-clamp-2 ${isActive ? "text-[#02163a]/80" : "text-black/60 group-hover:text-black/80"}`}>
+                      {macro.nombre}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </OverlayScrollbarsComponent>
+
+          <div className="px-5 py-3 border-t border-gray-100">
+            <p className="text-[9px] text-black/40">Sistema de Calidad · Aviva</p>
+          </div>
+        </aside>
+
+        {/* Tabla Principal */}
+        <main className="col-span-1 bg-white rounded-2xl shadow-lg border border-gray-200 flex flex-col min-w-0 overflow-hidden relative">
+
+          {isPending && (
+            <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex flex-col items-center justify-center">
+              <svg className="w-10 h-10 animate-spin text-[#1E50EF]" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <p className="mt-3 text-sm font-bold text-[#1E50EF] uppercase tracking-widest">Cargando</p>
+            </div>
+          )}
+
+          {/* Cabecera integrada */}
+          <div className="bg-white px-6 pt-5 pb-2 flex items-center justify-between shrink-0">
+            <h2 className="text-black text-[13px] leading-tight flex items-center gap-3">
               {macroActual ? (
-                <><span className="font-bold">Macroproceso {macroActual.orden}</span><span className="mx-8 text-white/30">|</span><span className="font-light text-white/90">{macroActual.nombre}</span></>
-              ) : <span className="text-white/50 italic">Cargando...</span>}
+                <>
+                  <span className="font-sans font-extrabold text-black">Macroproceso {macroActual.orden}</span>
+                  <span className="text-black/30 font-light">|</span>
+                  <span className="font-medium text-black">{macroActual.nombre}</span>
+                </>
+              ) : (
+                <span className="text-gray-400 italic text-[13px]">Cargando...</span>
+              )}
             </h2>
+
+            {/* Selector de estándar */}
             {macroActual && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-white/50 font-medium">Estándar:</span>
+                <span className="text-[9px] text-black font-bold">Estándar:</span>
                 <div className="relative">
-                  <select value={selectedCodigoId ?? ""} onChange={e => setSelectedCodigoId(e.target.value || null)} disabled={isPending}
-                    className="appearance-none bg-white text-gray-900 text-sm rounded-lg pl-3 pr-8 py-1.5 focus:outline-none cursor-pointer w-36 font-medium truncate disabled:opacity-50">
+                  <select
+                    value={selectedCodigoId ?? ""}
+                    onChange={(e) => setSelectedCodigoId(e.target.value || null)}
+                    disabled={isPending}
+                    className="appearance-none bg-gray-50 border border-gray-200 text-black text-[9px] rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-all w-24 font-medium disabled:opacity-50"
+                  >
                     <option value="">Todos</option>
-                    {codigos.map(c => <option key={c.id} value={c.id}>{c.codigo}</option>)}
+                    {codigos.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.codigo}
+                      </option>
+                    ))}
                   </select>
-                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Body */}
-        <div className="flex flex-1 min-h-0 overflow-hidden relative">
-          {isPending && (
-            <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex flex-col items-center justify-center">
-              <svg className="w-10 h-10 animate-spin text-[#3d537e]" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              <p className="mt-3 text-sm font-bold text-[#3d537e] uppercase tracking-widest">Cargando</p>
-            </div>
-          )}
+          {/* Subheader estándar seleccionado */}
+          {selectedCodigoId && (() => {
+            const obj = codigos.find((c) => c.id === selectedCodigoId);
+            return obj ? (
+              <div className="bg-white px-8 py-4 border-b border-gray-200 text-[13px] text-black shadow-sm animate-in fade-in shrink-0">
+                <span className="font-bold text-black mr-2">{obj.codigo}:</span>
+                {obj.descripcion}
+              </div>
+            ) : null;
+          })()}
 
-          {/* Sidebar liquid glass */}
-          <aside className="w-64 shrink-0 bg-[#3d557c] flex flex-col border-r border-white/5">
-            <OverlayScrollbarsComponent element="nav" options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-dark" } }} defer className="flex-1 py-3 px-4">
-              {macroprocesos.filter(m => !EXCLUDED_MACROS.has(m.orden)).map(macro => {
-                const isActive = macro.id === selectedMacroId;
-                return (
-                  <button key={macro.id} onClick={() => handleMacroClick(macro)}
-                    className={`w-full text-left flex flex-col px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${
-                      isActive
-                        ? "border border-white/30 shadow-2xl/20 inset-shadow-sm inset-shadow-white/30 backdrop-blur-md bg-white/5 text-white scale-[1.02]"
-                        : "text-white/50 hover:text-white/80 hover:bg-white/5"
-                    }`}
-                  >
-                    <span className="font-bold text-sm tracking-wide mb-1 text-white">{macro.orden}. {macro.codigo}</span>
-                    <span className={`text-[11px] leading-snug ${isActive ? "text-white" : "text-white/70"}`}>{macro.nombre}</span>
-                  </button>
-                );
-              })}
-            </OverlayScrollbarsComponent>
-            <div className="px-5 py-4 border-t border-white/5">
-              <p className="text-[10px] text-white/20">Sistema de Calidad · Aviva</p>
-            </div>
-          </aside>
-
-          {/* Main content */}
-          <main className="flex-1 flex flex-col min-w-0 bg-[#f8f8f8]">
-            {selectedCodigoId && (() => {
-              const obj = codigos.find(c => c.id === selectedCodigoId);
-              return obj ? (
-                <div className="bg-white px-8 py-3 border-b border-gray-200 text-sm text-gray-600 shrink-0">
-                  <span className="font-bold text-gray-900 mr-2">{obj.codigo}:</span>{obj.descripcion}
-                </div>
-              ) : null;
-            })()}
-
-            <OverlayScrollbarsComponent element="div" options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }} defer className="flex-1 p-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                {/* Table header */}
-                <div className="flex border-b border-gray-200 bg-gray-200/80 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                  <div className="w-[6%]  shrink-0 px-2 py-3 text-center">Cr.</div>
-                  <div className="w-[19%] shrink-0 px-3 py-3 border-l border-gray-200">Verificadores</div>
-                  <div className="w-[21%] shrink-0 px-3 py-3 border-l border-gray-200">Evidencias</div>
-                  <div className="w-[21%] shrink-0 px-3 py-3 border-l border-gray-200">Fuentes</div>
-                  <div className="w-[9%]  shrink-0 px-2 py-3 border-l border-gray-200 text-center">Puntaje</div>
-                  <div className="w-[19%] shrink-0 px-3 py-3 border-l border-gray-200">Obs. Evaluador</div>
-                  <div className="w-[5%]  shrink-0 px-2 py-3 border-l border-gray-200 text-center">Acción</div>
-                </div>
-
-                {/* Rows */}
-                {criteriosFiltrados.length === 0 ? (
-                  <div className="flex items-center justify-center py-20 text-gray-300 text-sm">No hay criterios para este estándar.</div>
-                ) : criteriosFiltrados.map((criterio, ci) => {
-                  const auto = getAuto(criterio.id);
-                  const pKey = auto.puntaje_propuesto === null ? "null" : String(auto.puntaje_propuesto);
-                  const cellBg = CELL_BG[pKey] ?? "";
-                  const rowBg = ci % 2 !== 0 ? "bg-gray-100" : "bg-white";
-
-                  return (
-                    <div key={criterio.id} className={`flex min-h-[80px] ${ci !== 0 ? "border-t border-gray-200" : ""} ${rowBg}`}>
-                      {/* Criterio */}
-                      <div className="w-[6%] shrink-0 border-r border-gray-100 px-2 py-3 flex items-start justify-center">
-                        <span className="font-mono text-xs font-bold text-gray-900 text-center break-all">{criterio.codigo_criterio}</span>
-                      </div>
-
-                      {/* Verificadores */}
-                      <div className="w-[19%] shrink-0 border-r border-gray-100 px-3 py-3 flex flex-col gap-1.5">
-                        {criterio.fuente_0 && <div className="flex items-start gap-1.5"><span className="mt-1 w-2 h-2 rounded-full bg-red-500 shrink-0" /><p className="text-xs text-gray-700 leading-relaxed">{criterio.fuente_0}</p></div>}
-                        {criterio.fuente_1 && <div className="flex items-start gap-1.5"><span className="mt-1 w-2 h-2 rounded-full bg-amber-400 shrink-0" /><p className="text-xs text-gray-700 leading-relaxed">{criterio.fuente_1}</p></div>}
-                        {criterio.fuente_2 && <div className="flex items-start gap-1.5"><span className="mt-1 w-2 h-2 rounded-full bg-green-500 shrink-0" /><p className="text-xs text-gray-700 leading-relaxed">{criterio.fuente_2}</p></div>}
-                        {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 && <span className="text-gray-300 text-xs italic">Sin verificadores</span>}
-                      </div>
-
-                      {/* Evidencias */}
-                      <div className="w-[21%] shrink-0 border-r border-gray-100 px-3 py-3 flex flex-col gap-1">
-                        {criterio.evidencias.length === 0
-                          ? <span className="text-gray-300 text-xs italic">Sin evidencias cargadas</span>
-                          : criterio.evidencias.map((ev, i) => (
-                            <p key={ev.id || i} className="text-xs text-gray-700 leading-snug truncate" title={ev.nombre_evidencia}>
-                              {ev.nombre_evidencia || <span className="text-gray-300 italic">Sin nombre</span>}
-                            </p>
-                          ))
-                        }
-                      </div>
-
-                      {/* Fuentes */}
-                      <div className="w-[21%] shrink-0 border-r border-gray-100 px-3 py-3 flex flex-col gap-1">
-                        {criterio.evidencias.filter(ev => ev.link_evidencia).length === 0
-                          ? <span className="text-gray-300 text-xs italic">Sin fuentes</span>
-                          : criterio.evidencias.filter(ev => ev.link_evidencia).map((ev, i) => (
-                            <a key={ev.id || i} href={ev.link_evidencia} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline truncate block" title={ev.link_evidencia}>
-                              {ev.link_evidencia}
-                            </a>
-                          ))
-                        }
-                      </div>
-
-                      {/* Puntaje — toda la celda se pinta */}
-                      <div className={`w-[9%] shrink-0 border-r border-gray-100 px-2 py-3 flex items-start justify-center transition-colors ${cellBg}`}>
-                        <select
-                          value={auto.puntaje_propuesto === null ? "" : String(auto.puntaje_propuesto)}
-                          onChange={e => {
-                            const raw = e.target.value;
-                            const val: 0 | 1 | 2 | null = raw === "" ? null : (Number(raw) as 0 | 1 | 2);
-                            // Only update local state — saving requires clicking the save button
-                            patchAuto(criterio.id, { puntaje_propuesto: val });
-                          }}
-                          className="w-full appearance-none text-center text-sm font-bold rounded-lg px-1 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer bg-white/70 border border-gray-200"
-                        >
-                          <option value="">—</option>
-                          <option value="0">0</option>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                        </select>
-                      </div>
-
-                      {/* Observación evaluador */}
-                      <div className="w-[19%] shrink-0 border-r border-gray-100 px-3 py-3 flex items-start">
-                        <textarea
-                          value={auto.observacion_evaluador}
-                          onChange={e => patchAuto(criterio.id, { observacion_evaluador: e.target.value })}
-                          placeholder="Observación del evaluador..."
-                          rows={3}
-                          className="w-full text-xs text-gray-700 bg-transparent border border-gray-200 rounded-md p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 focus:bg-white transition-colors placeholder:text-gray-300"
-                        />
-                      </div>
-
-                      {/* Acción — solo guardar fila */}
-                      <div className="w-[5%] shrink-0 px-1 py-3 flex items-start justify-center">
-                        <button
-                          onClick={() => saveRow(criterio.id)}
-                          disabled={auto.isSaving}
-                          title="Guardar"
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40"
-                        >
-                          {auto.isSaving
-                            ? <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
-                            : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                          }
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+          <OverlayScrollbarsComponent
+            element="div"
+            options={{ scrollbars: { autoHide: "scroll", theme: "os-theme-light" } }}
+            defer
+            className="flex-1 px-6 pt-1 pb-2"
+          >
+            <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden">
+              {/* Table header */}
+              <div className="flex border-b border-gray-300 bg-[#DEEBF7] text-[8px] font-sans font-extrabold uppercase tracking-wider text-black shrink-0">
+                <div className="w-[8%]  shrink-0 px-2 py-2 text-center flex items-center justify-center">Criterio</div>
+                <div className="w-[32%] shrink-0 px-3 py-2 border-l border-gray-300 flex items-center">Verificadores</div>
+                <div className="w-[25%] shrink-0 px-3 py-2 border-l border-gray-300 flex items-center">Evidencias</div>
+                <div className="w-[35%] shrink-0 px-3 py-2 border-l border-gray-300 flex items-center">Puntaje</div>
               </div>
 
-              {/* Footer stats + Guardar Todo */}
+              {/* Rows */}
               {!isPending && (
-                <div className="flex items-center justify-between mt-4 px-1">
-                  <p className="text-xs text-gray-400">
-                    Mostrando <span className="font-medium text-gray-600">{criteriosFiltrados.length}</span>{" "}
-                    de <span className="font-medium text-gray-600">{criterios.length}</span> criterios
-                  </p>
-                  <div className="flex items-center gap-4">
-                    {selectedCodigoId && (
-                      <button onClick={() => setSelectedCodigoId(null)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-                        Limpiar filtro ×
-                      </button>
-                    )}
-                    <button
-                      onClick={saveAll}
-                      disabled={isSavingAll}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl shadow-sm transition-all disabled:opacity-50"
-                    >
-                      {isSavingAll
-                        ? <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
-                        : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                      }
-                      {isSavingAll ? "Guardando..." : "Guardar todo"}
-                    </button>
+                criteriosFiltrados.length === 0 ? (
+                  <div className="flex items-center justify-center py-20 text-gray-300 text-sm">
+                    No hay criterios para este estándar.
                   </div>
-                </div>
-              )}
-            </OverlayScrollbarsComponent>
-          </main>
-        </div>
-      </div>
+                ) : (
+                  criteriosFiltrados.map((criterio, ci) => {
+                    const auto = getAuto(criterio.id);
+                    const rowBg = ci % 2 !== 0 ? "bg-gray-100" : "bg-white";
 
-      {/* Back link */}
-      <div className="w-full mt-4 flex justify-end">
-        <Link href={`/acreditacion/${proceso.id}`} className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm transition-colors font-medium">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          Volver al Dashboard
-        </Link>
+                    return (
+                      <div key={criterio.id} className={`flex min-h-[72px] ${ci !== 0 ? "border-t border-gray-300" : ""} ${rowBg}`}>
+                        {/* Criterio */}
+                        <div className="w-[8%] shrink-0 border-r border-gray-300 px-1.5 py-2 flex flex-col items-center justify-between">
+                          <span className="font-sans text-[8px] font-extrabold text-black text-center break-all leading-tight">
+                            {criterio.codigo_criterio}
+                          </span>
+                          {/* Info button — descripción popover */}
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative" ref={activePopover === `info-${criterio.id}` ? popoverRef : undefined}>
+                              <button
+                                onClick={() => setActivePopover(activePopover === `info-${criterio.id}` ? null : `info-${criterio.id}`)}
+                                title="Ver descripción"
+                                className="text-gray-400 hover:text-emerald-600 transition-colors"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </button>
+                              {activePopover === `info-${criterio.id}` && (
+                                <div className={`absolute left-full ml-2 ${ci < 2 ? "top-0" : "bottom-0"} z-50 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 p-3`}>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Descripción</p>
+                                  <p className="text-xs text-gray-700 leading-relaxed">
+                                    {criterio.descripcion || <span className="italic text-gray-400">Sin descripción</span>}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Verificadores */}
+                        <div className="w-[32%] shrink-0 border-r border-gray-300 px-3 py-2 flex flex-col gap-1.5">
+                          {criterio.fuente_0 && <div className="flex items-start gap-1.5"><span className="mt-0.5 w-2 h-2 rounded-full bg-red-500 shrink-0" /><p className="text-[9px] text-gray-700 leading-relaxed">{criterio.fuente_0}</p></div>}
+                          {criterio.fuente_1 && <div className="flex items-start gap-1.5"><span className="mt-0.5 w-2 h-2 rounded-full bg-amber-400 shrink-0" /><p className="text-[9px] text-gray-700 leading-relaxed">{criterio.fuente_1}</p></div>}
+                          {criterio.fuente_2 && <div className="flex items-start gap-1.5"><span className="mt-0.5 w-2 h-2 rounded-full bg-green-500 shrink-0" /><p className="text-[9px] text-gray-700 leading-relaxed">{criterio.fuente_2}</p></div>}
+                          {!criterio.fuente_0 && !criterio.fuente_1 && !criterio.fuente_2 && <span className="text-gray-300 text-[9px] italic">Sin verificadores</span>}
+                        </div>
+
+                        {/* Evidencias */}
+                        <div className="w-[25%] shrink-0 border-r border-gray-300 px-3 py-2 flex flex-col gap-1">
+                          {criterio.evidencias.length === 0
+                            ? <span className="text-gray-300 text-[9px] italic">Sin evidencias cargadas</span>
+                            : criterio.evidencias.map((ev, i) => (
+                              ev.link_evidencia ? (
+                                <a key={ev.id || i} href={ev.link_evidencia} target="_blank" rel="noopener noreferrer"
+                                  className="text-[9px] text-blue-600 hover:underline truncate block" title={ev.nombre_evidencia || ev.link_evidencia}>
+                                  {ev.nombre_evidencia || ev.link_evidencia}
+                                </a>
+                              ) : (
+                                <p key={ev.id || i} className="text-[9px] text-gray-700 leading-snug truncate" title={ev.nombre_evidencia}>
+                                  {ev.nombre_evidencia || <span className="text-gray-300 italic">Sin nombre</span>}
+                                </p>
+                              )
+                            ))
+                          }
+                        </div>
+
+                        {/* Puntaje + Observación + Guardar (columna combinada) */}
+                        {(() => {
+                          const p = auto.puntaje_propuesto;
+                          // Three-tier color tokens per score value
+                          const COLORS: Record<number, { border: string; boxActive: string; cellBg: string }> = {
+                            0: { border: "border-red-500", boxActive: "bg-red-200 text-red-800", cellBg: "bg-red-50" },
+                            1: { border: "border-amber-400", boxActive: "bg-amber-200 text-amber-800", cellBg: "bg-amber-50" },
+                            2: { border: "border-green-500", boxActive: "bg-green-200 text-green-800", cellBg: "bg-green-50" },
+                          };
+                          const activeCellBg = p !== null ? COLORS[p].cellBg : "";
+
+                          return (
+                            <div className={`w-[35%] shrink-0 px-3 py-2 flex flex-col gap-2 transition-colors duration-200 ${activeCellBg}`}>
+                              {/* Puntaje label + boxes en la misma fila */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-extrabold text-black/50 uppercase tracking-wide shrink-0">Puntaje:</span>
+                                <div className="flex items-center gap-1">
+                                  {([0, 1, 2] as const).map((val) => {
+                                    const isSelected = auto.puntaje_propuesto === val;
+                                    const c = COLORS[val];
+                                    return (
+                                      <button
+                                        key={val}
+                                        onClick={() => patchAuto(criterio.id, { puntaje_propuesto: isSelected ? null : val })}
+                                        className={`w-7 h-6 rounded border text-[10px] font-extrabold transition-all duration-150
+                                          ${isSelected
+                                            ? `${c.border} ${c.boxActive}`
+                                            : `border-gray-200 bg-white text-gray-400 hover:border-gray-400 hover:text-gray-600`
+                                          }`}
+                                      >
+                                        {val}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Observación */}
+                              <div className="flex flex-col gap-1 flex-1">
+                                <span className="text-[8px] font-extrabold text-black/50 uppercase tracking-wide">Observación:</span>
+                                <textarea
+                                  value={auto.observacion_evaluador}
+                                  onChange={e => patchAuto(criterio.id, { observacion_evaluador: e.target.value })}
+                                  placeholder="Observación del evaluador..."
+                                  rows={2}
+                                  className="w-full text-[9px] text-gray-700 bg-white/80 border border-gray-200 rounded-md p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 focus:bg-white transition-colors placeholder:text-gray-300"
+                                />
+                                {/* Guardar — debajo del textarea, alineado a la derecha */}
+                                <div className="flex justify-end">
+                                  <button
+                                    onClick={() => saveRow(criterio.id)}
+                                    disabled={auto.isSaving}
+                                    title="Guardar fila"
+                                    className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-40"
+                                  >
+                                    {auto.isSaving
+                                      ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                                      : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                    }
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  })
+                )
+              )}
+            </div>
+          </OverlayScrollbarsComponent>
+
+          {/* Footer fijo — fuera del scroll */}
+          <div className="shrink-0 border-t border-gray-100 px-6 py-2 flex items-center justify-between bg-white">
+            <p className="text-[9px] text-gray-400">
+              {!isPending && (
+                <>Mostrando <span className="font-medium text-gray-600">{criteriosFiltrados.length}</span>{" "}
+                  de <span className="font-medium text-gray-600">{criterios.length}</span> criterios</>
+              )}
+            </p>
+            <div className="flex items-center gap-3">
+              {selectedCodigoId && (
+                <button onClick={() => setSelectedCodigoId(null)} className="text-[9px] text-blue-500 hover:text-blue-700 transition-colors">
+                  Limpiar filtro ×
+                </button>
+              )}
+              <button
+                onClick={saveAll}
+                disabled={isSavingAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white text-[9px] uppercase tracking-wider font-bold rounded-lg shadow-sm transition-all disabled:opacity-50"
+              >
+                {isSavingAll
+                  ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+                  : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                }
+                {isSavingAll ? "Guardando..." : "Guardar todo"}
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

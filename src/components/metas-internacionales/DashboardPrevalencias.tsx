@@ -10,6 +10,7 @@ import {
   getDistribucionEvaluacionesPorSet,
 } from "@/app/metas-internacionales/actions";
 import {
+  ComposedChart,
   BarChart,
   Bar,
   PieChart,
@@ -90,15 +91,36 @@ const PALETTE = [
   "#06b6d4", "#d946ef",
 ];
 
+const P3_PALETTE = [
+  "var(--color-p3-ocean-blue-400)",
+  "var(--color-p3-ocean-blue-300)",
+  "var(--color-p3-ocean-blue-200)",
+  "var(--color-p3-ocean-blue-100)",
+];
+
 function colorForValue(pct: number): string {
-  if (pct >= 90) return "#10b981";
-  if (pct >= 75) return "#f59e0b";
-  return "#ef4444";
+  if (pct === 100) return "var(--color-p2-ocean-teal-400)";
+  if (pct >= 90) return "var(--color-p2-ocean-teal-300)";
+  if (pct >= 75) return "var(--color-p2-ocean-teal-200)";
+  return "var(--color-p2-ocean-teal-100)";
 }
 
 function pctLabel(value: unknown) {
   const n = typeof value === "number" ? value : parseFloat(String(value));
   return isNaN(n) ? "" : `${n.toFixed(1)}%`;
+}
+
+
+function getColorForSet(setName: string): string {
+  if (!setName) return BRAND;
+  const lower = setName.toLowerCase();
+  if (lower.includes("lavado de manos")) return "var(--color-p1-primary-blue)";
+  if (lower.includes("administraci") && lower.includes("medicamentos")) return "var(--color-p1-accent-aqua)";
+  if (lower.includes("identificaci") && lower.includes("paciente")) return "var(--color-p1-primary-teal)";
+  if (lower.includes("caídas") || lower.includes("caidas")) return "var(--color-p1-light-blue)";
+  if (lower.includes("presión") || lower.includes("presion") || lower.includes("ulceras") || lower.includes("úlceras")) return "var(--color-p1-sky-blue)";
+  if (lower.includes("comunicaci") && lower.includes("segura")) return "var(--color-p1-mint)";
+  return BRAND;
 }
 
 // ─── SetSelector (filtro inline por meta) ─────────────────────────────────────
@@ -504,7 +526,7 @@ export default function DashboardPrevalencias({
           empty={!loadingBySet && dataUpss.length === 0}
         >
           <ResponsiveContainer width="100%" height={190}>
-            <BarChart
+            <ComposedChart
               data={dataUpss}
               layout="horizontal"
               margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
@@ -528,6 +550,7 @@ export default function DashboardPrevalencias({
                 tickLine={false}
                 width={28}
               />
+
               <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
               <Bar dataKey="porcentaje_cumplimiento" radius={[4, 4, 0, 0]} maxBarSize={24}>
                 {dataUpss.map((entry, i) => (
@@ -540,7 +563,7 @@ export default function DashboardPrevalencias({
                   style={{ fontSize: 7.5, fontWeight: 700, fill: "#374151" }}
                 />
               </Bar>
-            </BarChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
 
@@ -598,7 +621,7 @@ export default function DashboardPrevalencias({
       </div>
 
       {/* Fila 2: Gráficas 2, 4 y 5 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[50fr_23fr_27fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[50fr_22fr_28fr] gap-6">
         {/* Gráfica 2 — Cumplimiento global por set */}
         <div>
           <ChartCard
@@ -633,7 +656,7 @@ export default function DashboardPrevalencias({
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
                   <Bar dataKey="porcentaje_cumplimiento" radius={[4, 4, 0, 0]} maxBarSize={36}>
                     {dataGlobal.map((entry, i) => (
-                      <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      <Cell key={i} fill={getColorForSet(entry.set_nombre)} />
                     ))}
                     <LabelList
                       dataKey="porcentaje_cumplimiento"
@@ -664,8 +687,8 @@ export default function DashboardPrevalencias({
                     nameKey="evaluador_nombre"
                     cx="50%"
                     cy="50%"
-                    innerRadius={20}
-                    outerRadius={45}
+                    innerRadius={35}
+                    outerRadius={60}
                     paddingAngle={4}
                     labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
                     label={(p: any) => {
@@ -709,7 +732,7 @@ export default function DashboardPrevalencias({
                     }}
                   >
                     {dataEvaluadores.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                      <Cell key={`cell-${index}`} fill={P3_PALETTE[index % P3_PALETTE.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomPieTooltip />} />
@@ -735,8 +758,8 @@ export default function DashboardPrevalencias({
                     nameKey="set_nombre"
                     cx="50%"
                     cy="50%"
-                    innerRadius={20}
-                    outerRadius={45}
+                    innerRadius={30}
+                    outerRadius={55}
                     paddingAngle={4}
                     labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
                     label={(p: any) => {
@@ -780,7 +803,7 @@ export default function DashboardPrevalencias({
                     }}
                   >
                     {dataDistribucion.map((entry, index) => (
-                      <Cell key={`cell-dist-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                      <Cell key={`cell-dist-${index}`} fill={getColorForSet(entry.set_nombre)} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomPieTooltip unit="evaluaciones" />} />
