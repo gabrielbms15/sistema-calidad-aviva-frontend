@@ -102,7 +102,7 @@ function DonutChart({ totales }: { totales: Record<"cumplido" | "parcial" | "no_
   const circumference = 2 * Math.PI * R;
 
   const keys = ["cumplido", "parcial", "no_cumplido", "sin_estado"] as const;
-  const segments: any[] = [];
+  const segments: { key: keyof typeof STATUS_COLORS; count: number; pct: number; offset: number; dash: number }[] = [];
   let offsetAcc = 0;
 
   keys.forEach((key) => {
