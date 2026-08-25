@@ -147,10 +147,10 @@ function DonutChart({ totales }: { totales: Record<StatusKey, number> & { total:
           className="absolute inset-0 flex flex-col items-center justify-center"
           style={{ pointerEvents: "none" }}
         >
-          <span className="text-[22px] font-black text-gray-800 leading-none tabular-nums">
+          <span className="text-[18px] font-black text-gray-800 leading-none tabular-nums">
             {totales.total}
           </span>
-          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">
+          <span className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">
             total
           </span>
         </div>
@@ -166,14 +166,14 @@ function DonutChart({ totales }: { totales: Record<StatusKey, number> & { total:
                 className="w-2.5 h-2.5 rounded-sm shrink-0"
                 style={{ backgroundColor: STATUS_COLORS[key].bar }}
               />
-              <span className="text-[11px] text-gray-500 flex-1 leading-none">
+              <span className="text-[9px] text-gray-500 flex-1 leading-none">
                 {STATUS_COLORS[key].label}
               </span>
-              <span className="text-[11px] font-bold tabular-nums text-gray-700">
+              <span className="text-[9px] font-bold tabular-nums text-gray-700">
                 {totales[key]}
               </span>
               <span
-                className="text-[10px] font-semibold tabular-nums w-10 text-right"
+                className="text-[9px] font-semibold tabular-nums w-10 text-right"
                 style={{ color: STATUS_COLORS[key].bar }}
               >
                 {pct.toFixed(1)}%
@@ -209,11 +209,11 @@ function StackedBarRow({
     >
       {/* Label */}
       <div className="w-[35%] shrink-0 flex items-center justify-end gap-1.5 pr-2">
-        <span className="text-[11px] font-normal text-[#000000] font-mono shrink-0">
+        <span className="text-[9px] font-normal text-[#000000] font-mono shrink-0">
           {macro.orden}.
         </span>
         <span
-          className="text-[13px] font-medium text-[#000000] truncate font-avenir text-right"
+          className="text-[10px] font-medium text-[#000000] truncate font-avenir text-right"
           title={macro.nombre}
         >
           {macro.nombre}
@@ -224,7 +224,7 @@ function StackedBarRow({
       <div className="flex-1">
         {total === 0 ? (
           <div className="h-5 bg-black/[0.03] rounded flex items-center justify-center ring-1 ring-inset ring-black/[0.06]">
-            <span className="text-[10px] text-gray-300 font-medium">Sin entregables</span>
+            <span className="text-[9px] text-gray-300 font-medium">Sin entregables</span>
           </div>
         ) : (
           <div className="relative flex h-5 w-full rounded overflow-hidden shadow-sm ring-1 ring-inset ring-black/[0.08]">
@@ -243,7 +243,7 @@ function StackedBarRow({
                   }}
                 >
                   {segPct >= 8 && (
-                    <span className={`text-[10px] font-bold select-none tabular-nums ${STATUS_COLORS[key].barText}`}>
+                    <span className={`text-[9px] font-bold select-none tabular-nums ${STATUS_COLORS[key].barText}`}>
                       {count}
                     </span>
                   )}
@@ -301,7 +301,7 @@ export default function EntregablesChart({ procesos, dataByProceso, selectedProc
         
         {/* Title inside the card */}
         <div className="px-8 pt-6 pb-2 flex items-center justify-between gap-4 shrink-0">
-          <h2 className="text-[#000000] font-avenir-demi text-base font-bold tracking-tight">
+          <h2 className="text-[9px] font-sans font-extrabold uppercase tracking-wider text-gray-700">
             Entregables por Macroproceso
           </h2>
         </div>

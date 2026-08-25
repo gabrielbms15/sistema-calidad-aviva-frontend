@@ -14,7 +14,6 @@ import EntregablesChart, {
 import CriteriosChart from "./CriteriosChart";
 import CriteriosResponsablesTable from "./CriteriosResponsablesTable";
 import EstatusChart from "./EstatusChart";
-import ComparativoAutoevaluacionChart from "./ComparativoAutoevaluacionChart";
 
 interface Props {
   procesos: ProcesoOption[];
@@ -36,9 +35,9 @@ export default function ResultadosClientContainer({
   return (
     <div className="flex flex-col gap-6 pb-10 font-avenir">
       {/* Global Proceso Selector */}
-      <div className="flex items-center justify-between bg-white/80 backdrop-blur-2xl rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 p-4 shrink-0 ring-1 ring-black/[0.02]">
-        <div className="flex items-center gap-3">
-          <span className="text-[#000000]/60 text-[10px] font-avenir-demi font-semibold uppercase tracking-wider">
+      <div className="flex items-center justify-between bg-white/80 backdrop-blur-2xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 py-2 px-4 shrink-0 ring-1 ring-black/[0.02]">
+        <div className="flex items-center gap-2">
+          <span className="text-[#000000]/60 text-[9px] font-avenir-demi font-semibold uppercase tracking-wider">
             Proceso de Acreditación:
           </span>
           <div className="relative">
@@ -46,7 +45,7 @@ export default function ResultadosClientContainer({
               id="global-proceso-selector"
               value={selectedProcesoId}
               onChange={(e) => setSelectedProcesoId(e.target.value)}
-              className="appearance-none bg-black/[0.04] hover:bg-black/[0.08] text-[#000000] text-[13px] font-avenir-demi rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-black/10 cursor-pointer font-medium border border-black/[0.08] min-w-[240px] transition-all shadow-sm"
+              className="appearance-none bg-black/[0.04] hover:bg-black/[0.08] text-[#000000] text-[10px] font-avenir-demi rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-1 focus:ring-black/10 cursor-pointer font-medium border border-black/[0.08] min-w-[200px] transition-all shadow-sm"
             >
               {procesos.map((p) => (
                 <option key={p.id} value={p.id} className="text-gray-900 bg-white">
@@ -64,47 +63,51 @@ export default function ResultadosClientContainer({
       {/* Charts & Tables */}
       <div className="flex flex-col gap-6">
 
-        {/* Fila 1: Autoevaluación + Comparativa Anual */}
-        <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
-          <ResultadosChart
-            procesos={procesos}
-            dataByProceso={dataByProceso}
-            selectedProcesoId={selectedProcesoId}
-          />
-          <ComparativoAutoevaluacionChart
-            procesos={procesos}
-            dataByProceso={dataByProceso}
-            selectedProcesoId={selectedProcesoId}
-          />
+        {/* Fila 1: Autoevaluación & ResponsablesTable */}
+        <div className="flex flex-col lg:flex-row gap-6 w-full items-stretch lg:h-[500px]">
+          <div className="w-[50%] shrink-0">
+            <ResultadosChart
+              procesos={procesos}
+              dataByProceso={dataByProceso}
+              selectedProcesoId={selectedProcesoId}
+            />
+          </div>
+          <div className="w-[50%] shrink-0">
+            <ResponsablesTable
+              procesos={procesos}
+              dataByProceso={responsablesByProceso}
+              selectedProcesoId={selectedProcesoId}
+            />
+          </div>
         </div>
 
-        {/* Fila 2: Entregables por Macroproceso */}
+        {/* Fila 2: Entregables por Macroproceso (HIDDEN PER USER REQUEST) */}
+        {/*
         <EntregablesChart
           procesos={procesos}
           dataByProceso={entregablesByProceso}
           selectedProcesoId={selectedProcesoId}
         />
+        */}
 
-        {/* Fila 3: Criterios por Macroproceso */}
+        {/* Fila 3: Criterios por Macroproceso (HIDDEN PER USER REQUEST)
         <CriteriosChart
           procesos={procesos}
           dataByProceso={entregablesByProceso}
           selectedProcesoId={selectedProcesoId}
         />
+        */}
 
-        {/* Fila 4: Tablas 50/50 — Entregables por resp. | Criterios por resp. */}
+        {/* Fila 4: Tablas 50/50 — Criterios por resp. (Criterios hidden per user request) */}
+        {/*
         <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
-          <ResponsablesTable
-            procesos={procesos}
-            dataByProceso={responsablesByProceso}
-            selectedProcesoId={selectedProcesoId}
-          />
           <CriteriosResponsablesTable
             procesos={procesos}
             dataByProceso={responsablesByProceso}
             selectedProcesoId={selectedProcesoId}
           />
         </div>
+        */}
 
         {/* Fila 5: Estatus — ancho completo */}
         <EstatusChart
